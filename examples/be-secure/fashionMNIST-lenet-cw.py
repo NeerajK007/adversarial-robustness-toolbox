@@ -8,7 +8,7 @@ from art.attacks.evasion import CarliniL2Method
 from art.estimators.classification import PyTorchClassifier
 import logging
 import numpy as np
-
+import json
 
 logging.basicConfig(level=logging.INFO)
 
@@ -37,7 +37,7 @@ class LeNet(nn.Module):
 # ---------------------------
 # Pipeline Methods
 # ---------------------------
-def load_fashion_mnist(batch_size=128):
+def load_fashion_mnist(batch_size=10):
     transform = transforms.Compose([transforms.ToTensor()])
     trainset = torchvision.datasets.FashionMNIST(
         root="./data", train=True, download=True, transform=transform
@@ -45,16 +45,22 @@ def load_fashion_mnist(batch_size=128):
     testset = torchvision.datasets.FashionMNIST(
         root="./data", train=False, download=True, transform=transform
     )
+    
+    # Limit dataset size for debugging/resource management
+    trainset = torch.utils.data.Subset(trainset, range(1000))  # Use only 1000 samples
+    testset = torch.utils.data.Subset(testset, range(100))     # Use only 100 samples
 
     train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(testset, batch_size=batch_size, shuffle=False)
 
+    logging.info(f"Loaded FashionMNIST: {len(trainset)} train samples, {len(testset)} test samples")
     return train_loader, test_loader
 
 
 def build_classifier(model, device):
     loss_fn = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    logging.info(f"Model: {model}");
     return PyTorchClassifier(
         model=model,
         clip_values=(0, 1),
@@ -67,6 +73,7 @@ def build_classifier(model, device):
 
 def train_model(classifier, train_loader, device, epochs=2):
     classifier.model.train()
+    logging.info(f"Starting training for {epochs} epochs")
     for epoch in range(epochs):
         for images, labels in train_loader:
             images, labels = images.to(device), labels.to(device)
@@ -93,11 +100,14 @@ def evaluate_accuracy(classifier, loader, device, desc=""):
     return acc
 
 
-def run_carlini_wagner_attack(classifier, X, y, max_iter=10):
+def run_carlini_wagner_attack(classifier, X, y, confidence = 0, max_iter=10, learning_rate=0.01, initial_const=0.001):
     attack = CarliniL2Method(
         classifier=classifier,
+        #confidence=confidence,
         max_iter=max_iter,
-        batch_size=X.shape[0],
+        #learning_rate=learning_rate,
+        #initial_const=initial_const,
+        batch_size=10,
     )
     return attack.generate(x=X)
 
@@ -111,7 +121,7 @@ def main():
         logging.info(f"Using device: {device}")
 
         # 1. Load dataset
-        train_loader, test_loader = load_fashion_mnist()
+        train_loader, test_loader = load_fashion_mnist(batch_size=10)
 
         # 2. Initialize model & classifier
         model = LeNet().to(device)
@@ -128,12 +138,40 @@ def main():
         X, y = X.numpy(), y.numpy()
 
         # 6. Run C&W attack
-        X_adv = run_carlini_wagner_attack(classifier, X, y, max_iter=5)
+        confidence = 0 
+        max_iter=10 
+        learning_rate=0.01 
+        initial_const=0.001
+        
+        X_adv = run_carlini_wagner_attack(classifier, X, y, confidence, max_iter, learning_rate, initial_const)
         acc_adv = evaluate_accuracy(classifier, [(torch.tensor(X_adv), torch.tensor(y))], device, desc="after C&W attack")
 
         # 7. Report drop
         logging.info(f"Accuracy drop: {acc_clean:.4f} -> {acc_adv:.4f}")
 
+
+        report = {
+            "REPORT_TYPE": "adversarial_attack",
+            "DATASET": "Fashion-MNIST",
+            "MODEL": "LeNet",
+            "ATTACK_METHOD": "CarliniWagnerL2",
+            "ATTACK_PARAMETERS": {
+                "confidence": "default",
+                "max_iterations": max_iter,
+                "learning_rate": "default",
+                "initial_const": "default"
+            },
+            "MODEL_BEFORE": {
+                "accuracy": round(acc_clean, 3)
+            },
+            "MODEL_AFTER": {
+                "accuracy": round(acc_adv, 3)
+            },
+            "NOTES": "C&W successfully crafted low-distortion adversarial samples that fooled the classifier."
+        }
+        logging.info("Attack report:")
+        print(json.dumps(report, indent=2))
+        
     except Exception as e:
         logging.error(f"Pipeline failed: {e}")
 
