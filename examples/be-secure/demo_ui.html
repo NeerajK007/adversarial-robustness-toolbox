@@ -2,54 +2,168 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>MobileNetV2 Defect Classifier + Adversarial Attack</title>
+  <title>Tiles Defect Classifier + Adversarial Attack</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 40px; }
-    #result, #advResult { margin-top: 10px; font-weight: bold; }
-    img { max-width: 300px; margin-top: 10px; }
-    select, button, input { margin-top: 10px; display: block; }
-    #attackBtn { background-color: red; color: white; }
-    .pred-container { margin-top: 20px; }
-  
-    /* Extra spacing between attack dropdown and epsilon */
-    #attackSelect {
-      margin-bottom: 15px;  /* adjust value as you like */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 30px;
+      background: #f4f6f9;
+      color: #333;
+    }
+
+    h1 {
+      text-align: center;
+      color: #003366;
+      margin-bottom: 10px;
+    }
+
+    h5 {
+      text-align: center;
+      color: #003366;
+      margin-bottom: 10px;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: auto;
+      background: #fff;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0px 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .section {
+      margin-bottom: 25px;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      background: #fafafa;
+    }
+
+    label {
+      font-weight: bold;
+      margin-bottom: 5px;
+      display: inline-block;
+    }
+
+    input[type="file"], 
+    select, 
+    input[type="number"] {
+      padding: 8px;
+      margin-top: 5px;
+      width: 100%;
+      max-width: 300px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      margin-top: 15px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 15px;
+    }
+
+    #attackBtn {
+      background-color: #c0392b;
+      color: white;
+      font-weight: bold;
+    }
+
+    #attackBtn:hover {
+      background-color: #a93226;
+    }
+
+    .results {
+      display: flex;
+      justify-content: space-between;
+      gap: 30px;
+      margin-top: 20px;
+    }
+
+    .result-card {
+      flex: 1;
+      text-align: center;
+      background: #fff;
+      padding: 15px;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    img {
+      max-width: 100%;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      border: 2px solid #eee;
+    }
+
+    .good {
+      color: green;
+      font-weight: bold;
+    }
+
+    .defective {
+      color: red;
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
-  <h1>MobileNetV2 Synthetic Defect Classifier</h1>
+  <h1>Tiles Defect Classifier + Adversarial Attack</h1>
+  <h5>Datasets: mvtec_ad || ML Model: MobileNet_V2 - pre-trained on ImageNet</h3>
 
-  <!-- Image Selection -->
-  <input type="file" id="imageInput" accept="image/*"><br>
-  <img id="preview" src="" alt="" />
 
-  <!-- Attack Options -->
-  <label for="attackSelect">Select Attack:</label>
-  <select id="attackSelect">
-    <option value="fgsm" selected>FGSM</option>
-    <option value="pgd" disabled>PGD (coming)</option>
-    <option value="cw" disabled>C&W (coming)</option>
-  </select>
+  <div class="container">
 
-  <label for="epsInput">FGSM Epsilon:</label>
-  <input type="number" id="epsInput" value="0.1" step="0.01" min="0" max="1">
+    <!-- Image Upload -->
+    <div class="section">
+      <label for="imageInput">Upload Tile Image:</label>
+      <input type="file" id="imageInput" accept="image/*">
+    </div>
 
-  <button id="attackBtn">Launch Attack</button>
+    <!-- Attack Settings -->
+    <div class="section">
+      <label for="attackSelect">Select Attack:</label>
+      <select id="attackSelect">
+        <option value="fgsm" selected>FGSM (Fast Gradient)</option>
+        <option value="pgd" disabled>PGD (Coming Soon)</option>
+        <option value="cw" disabled>C&W (Coming Soon)</option>
+      </select>
 
-  <!-- Results -->
-  <div class="pred-container" id="result"></div>
-  <h3>Adversarial Image:</h3>
-  <img id="advPreview" src="" alt="" />
+      <label for="epsInput" style="margin-top:15px;">FGSM Epsilon:</label>
+      <input type="number" id="epsInput" value="0.1" step="0.01" min="0" max="1">
+
+      <button id="attackBtn">🚀 Launch Attack</button>
+    </div>
+
+    <!-- Side-by-side Results -->
+    <div class="results">
+      <div class="result-card">
+        <h3>Original Image</h3>
+        <img id="preview" src="" alt="" />
+        <div id="origResult">No prediction yet.</div>
+      </div>
+
+      <div class="result-card">
+        <h3>Adversarial Image</h3>
+        <img id="advPreview" src="" alt="" />
+        <div id="advResult">No prediction yet.</div>
+      </div>
+    </div>
+
+  </div>
 
   <script>
     const imageInput = document.getElementById('imageInput');
     const attackSelect = document.getElementById('attackSelect');
     const epsInput = document.getElementById('epsInput');
     const attackBtn = document.getElementById('attackBtn');
-    const resultDiv = document.getElementById('result');
     const preview = document.getElementById('preview');
     const advPreview = document.getElementById('advPreview');
+    const origResult = document.getElementById('origResult');
+    const advResult = document.getElementById('advResult');
 
     let selectedFile = null;
 
@@ -57,16 +171,19 @@
       selectedFile = event.target.files[0];
       if (selectedFile) {
         preview.src = URL.createObjectURL(selectedFile);
-        resultDiv.innerHTML = '';
+        origResult.innerHTML = 'Ready to analyze...';
         advPreview.src = '';
+        advResult.innerHTML = 'No adversarial result yet.';
       }
     });
 
     // ---- Adversarial Attack ----
     attackBtn.addEventListener('click', async () => {
-      if (!selectedFile) return alert("Select an image first!");
+      if (!selectedFile) return alert("Please upload a tile image first!");
 
-      resultDiv.innerHTML = "Generating adversarial image...";
+      origResult.innerHTML = "⚙️ Running attack...";
+      advResult.innerHTML = "⚙️ Running attack...";
+
       const advForm = new FormData();
       advForm.append("file", selectedFile);
       advForm.append("attack", attackSelect.value);
@@ -80,16 +197,23 @@
         if (!advResponse.ok) throw new Error(`HTTP error ${advResponse.status}`);
         const advData = await advResponse.json();
 
-        resultDiv.innerHTML = `
-          <strong>Original Prediction:</strong> ${advData.original_label} <br>
-          Confidence: ${(advData.original_confidence*100).toFixed(2)}% <br><br>
-          <strong>Adversarial Prediction:</strong> ${advData.adv_label} <br>
+        const origClass = advData.original_label === "good" ? "good" : "defective";
+        const advClass = advData.adv_label === "good" ? "good" : "defective";
+
+        origResult.innerHTML = `
+          <strong>Prediction:</strong> <span class="${origClass}">${advData.original_label}</span> <br>
+          Confidence: ${(advData.original_confidence*100).toFixed(2)}%
+        `;
+
+        advResult.innerHTML = `
+          <strong>Prediction:</strong> <span class="${advClass}">${advData.adv_label}</span> <br>
           Confidence: ${(advData.adv_confidence*100).toFixed(2)}%
         `;
 
         advPreview.src = `data:image/png;base64,${advData.adv_image_base64}`;
       } catch (error) {
-        resultDiv.innerHTML = `Error: ${error}`;
+        origResult.innerHTML = `<span style="color:red">Error: ${error}</span>`;
+        advResult.innerHTML = `<span style="color:red">Error: ${error}</span>`;
       }
     });
   </script>
