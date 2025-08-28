@@ -168,14 +168,34 @@
     let selectedFile = null;
 
     imageInput.addEventListener('change', (event) => {
-      selectedFile = event.target.files[0];
-      if (selectedFile) {
-        preview.src = URL.createObjectURL(selectedFile);
-        origResult.innerHTML = 'Ready to analyze...';
-        advPreview.src = '';
-        advResult.innerHTML = 'No adversarial result yet.';
-      }
-    });
+    selectedFile = event.target.files[0];
+    if (selectedFile) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          // Create a canvas of 224x224
+          const canvas = document.createElement('canvas');
+          canvas.width = 224;
+          canvas.height = 224;
+          const ctx = canvas.getContext('2d');
+
+          // Draw the uploaded image into the canvas, resized
+          ctx.drawImage(img, 0, 0, 224, 224);
+
+          // Set the preview image src to the resized canvas output
+          preview.src = canvas.toDataURL("image/png");
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(selectedFile);
+
+    // reset results
+    resultDiv.innerHTML = '';
+    advPreview.src = '';
+  }
+});
+
 
     // ---- Adversarial Attack ----
     attackBtn.addEventListener('click', async () => {
