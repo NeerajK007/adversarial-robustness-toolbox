@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from typing import Optional
-
+from datetime import datetime
 # -------------------------------
 # Logging
 # -------------------------------
@@ -90,59 +90,61 @@ async def predict(file: UploadFile = File(...)):
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
 
-@app.post("/predict_adv")
-async def predict_adv(
+# Replace the old /predict_adv endpoint with a pure attack generator
+@app.post("/attack")
+async def generate_adv_image(
     file: UploadFile = File(...),
     attack: str = Form("fgsm"),
     eps: Optional[float] = Form(None),
     eps_step: Optional[float] = Form(None),
     max_iter: Optional[int] = Form(None),
-    targeted: Optional[bool] = Form(None),
+    targeted: Optional[str] = Form(None),
     num_random_init: Optional[int] = Form(None),
     confidence: Optional[float] = Form(None),
     learning_rate: Optional[float] = Form(None),
     binary_search_steps: Optional[int] = Form(None),
-    initial_const: Optional[float] = Form(None)
+    initial_const: Optional[float] = Form(None),
 ):
+    start_ts = datetime.now().isoformat()
+    logging.info(f"[ATTACK_API] Start: {start_ts} attack={attack}")
     try:
-        logging.info(f"Received attack type: {attack}")
-        image = Image.open(io.BytesIO(await file.read())).convert("RGB")
+        image_bytes = await file.read()
+        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
 
-        # Collect attack parameters dynamically
+        # Collect attack parameters dynamically (only pass what UI provided)
         attack_params = {}
-        if eps is not None: attack_params["eps"] = eps
-        if eps_step is not None: attack_params["eps_step"] = eps_step
-        if max_iter is not None: attack_params["max_iter"] = max_iter
-        if targeted is not None: attack_params["targeted"] = targeted
-        if num_random_init is not None: attack_params["num_random_init"] = num_random_init
-        if confidence is not None: attack_params["confidence"] = confidence
-        if learning_rate is not None: attack_params["learning_rate"] = learning_rate
-        if binary_search_steps is not None: attack_params["binary_search_steps"] = binary_search_steps
-        if initial_const is not None: attack_params["initial_const"] = initial_const
+        if eps is not None: attack_params["eps"] = float(eps)
+        if eps_step is not None: attack_params["eps_step"] = float(eps_step)
+        if max_iter is not None: attack_params["max_iter"] = int(max_iter)
+        if targeted is not None: attack_params["targeted"] = targeted  # UI sends "true"/"false" (string)
+        if num_random_init is not None: attack_params["num_random_init"] = int(num_random_init)
+        if confidence is not None: attack_params["confidence"] = float(confidence)
+        if learning_rate is not None: attack_params["learning_rate"] = float(learning_rate)
+        if binary_search_steps is not None: attack_params["binary_search_steps"] = int(binary_search_steps)
+        if initial_const is not None: attack_params["initial_const"] = float(initial_const)
 
-
-        logging.info("calling generate_adversarial() from demo_attack") 
+        # Generate adversarial image (ignore predictions)
         result = generate_adversarial(
             image, model, device, attack_name=attack, attack_params=attack_params
         )
-
         adv_image = result["adversarial_image"]
-        buffer = io.BytesIO()
-        adv_image.save(buffer, format="PNG")
-        adv_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
 
-        response = {
-            "original_label": result["original"]["label"],
-            "original_confidence": result["original"]["confidence"],
-            "adv_label": result["adversarial"]["label"],
-            "adv_confidence": result["adversarial"]["confidence"],
+        # Encode to base64
+        buf = io.BytesIO()
+        adv_image.save(buf, format="PNG")
+        adv_base64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+
+        end_ts = datetime.now().isoformat()
+        logging.info(f"[ATTACK_API] End: {end_ts} (Duration: {datetime.fromisoformat(end_ts) - datetime.fromisoformat(start_ts)})")
+
+        return JSONResponse(content={
+            "attack": attack,
             "adv_image_base64": adv_base64
-        }
-        return JSONResponse(content=response)
-
+        })
     except Exception as e:
-        logging.error(f"Adversarial prediction error: {e}")
+        logging.error(f"Adversarial image generation error: {e}")
         return JSONResponse(content={"error": str(e)}, status_code=500)
+
     
 @app.get("/demo_ui.html")
 def serve_ui():

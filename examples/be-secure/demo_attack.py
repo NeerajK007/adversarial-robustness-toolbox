@@ -85,6 +85,8 @@ def cw_attack(
     """
     start_time = datetime.now()
     logging.info(f"[CW_ATTACK] Start: {start_time.isoformat()}")
+    logging.info(f"targeted- {targeted}")
+
 
     classifier = get_art_classifier(model)
     img_tensor = pil_to_tensor(image, device)
@@ -92,7 +94,7 @@ def cw_attack(
     attack = CarliniL2Method(
         classifier=classifier,
         confidence=confidence,
-        targeted=targeted,
+        #targeted=targeted,
         learning_rate=learning_rate,
         binary_search_steps=binary_search_steps,
         max_iter=max_iter,
@@ -102,23 +104,23 @@ def cw_attack(
     adv_tensor = torch.tensor(attack.generate(img_tensor.cpu().numpy()))
     adv_img = tensor_to_pil(adv_tensor)
 
-    def predict(tensor):
-        with torch.no_grad():
-            outputs = model(tensor)
-            probs = torch.softmax(outputs, dim=1)
-            confidence_val, pred = torch.max(probs, dim=1)
-            label = "good" if pred.item() == 0 else "defective"
-            return label, float(confidence_val.item())
+    # def predict(tensor):
+    #     with torch.no_grad():
+    #         outputs = model(tensor)
+    #         probs = torch.softmax(outputs, dim=1)
+    #         confidence_val, pred = torch.max(probs, dim=1)
+    #         label = "good" if pred.item() == 0 else "defective"
+    #         return label, float(confidence_val.item())
 
-    orig_label, orig_conf = predict(img_tensor)
-    adv_label, adv_conf = predict(pil_to_tensor(adv_img, device=device))
+    # orig_label, orig_conf = predict(img_tensor)
+    # adv_label, adv_conf = predict(pil_to_tensor(adv_img, device=device))
 
     end_time = datetime.now()
     logging.info(f"[CW_ATTACK] End: {end_time.isoformat()} (Duration: {end_time - start_time})")
 
     return {
-        "original": {"label": orig_label, "confidence": orig_conf},
-        "adversarial": {"label": adv_label, "confidence": adv_conf},
+        # "original": {"label": orig_label, "confidence": orig_conf},
+        # "adversarial": {"label": adv_label, "confidence": adv_conf},
         "adversarial_image": adv_img
     }
     
@@ -141,9 +143,12 @@ def pgd_attack(
     """
     start_time = datetime.now()
     logging.info(f"[PGD_ATTACK] Start: {start_time.isoformat()}")
+    logging.info(f"targeted- {targeted}")
 
     classifier = get_art_classifier(model)
     img_tensor = pil_to_tensor(image, device)
+    
+    #targeted = "y" if targeted else "n"
 
     attack = ProjectedGradientDescent(
         estimator=classifier,
@@ -157,23 +162,23 @@ def pgd_attack(
     adv_tensor = torch.tensor(attack.generate(img_tensor.cpu().numpy()))
     adv_img = tensor_to_pil(adv_tensor)
 
-    def predict(tensor):
-        with torch.no_grad():
-            outputs = model(tensor)
-            probs = torch.softmax(outputs, dim=1)
-            confidence_val, pred = torch.max(probs, dim=1)
-            label = "good" if pred.item() == 0 else "defective"
-            return label, float(confidence_val.item())
+    # def predict(tensor):
+    #     with torch.no_grad():
+    #         outputs = model(tensor)
+    #         probs = torch.softmax(outputs, dim=1)
+    #         confidence_val, pred = torch.max(probs, dim=1)
+    #         label = "good" if pred.item() == 0 else "defective"
+    #         return label, float(confidence_val.item())
 
-    orig_label, orig_conf = predict(img_tensor)
-    adv_label, adv_conf = predict(pil_to_tensor(adv_img, device=device))
+    # orig_label, orig_conf = predict(img_tensor)
+    # adv_label, adv_conf = predict(pil_to_tensor(adv_img, device=device))
 
     end_time = datetime.now()
     logging.info(f"[PGD_ATTACK] End: {end_time.isoformat()} (Duration: {end_time - start_time})")
 
     return {
-        "original": {"label": orig_label, "confidence": orig_conf},
-        "adversarial": {"label": adv_label, "confidence": adv_conf},
+        # "original": {"label": orig_label, "confidence": orig_conf},
+        # "adversarial": {"label": adv_label, "confidence": adv_conf},
         "adversarial_image": adv_img
     }
 
@@ -194,20 +199,20 @@ def fgsm_attack(image: Image.Image, model, device, eps: float = 0.1):
     adv_img = tensor_to_pil(adv_tensor)
 
     # Prediction helper
-    def predict(tensor):
-        with torch.no_grad():
-            outputs = model(tensor)
-            probs = torch.softmax(outputs, dim=1)
-            confidence, pred = torch.max(probs, dim=1)
-            label = "good" if pred.item() == 0 else "defective"
-            return label, float(confidence.item())
+    # def predict(tensor):
+    #     with torch.no_grad():
+    #         outputs = model(tensor)
+    #         probs = torch.softmax(outputs, dim=1)
+    #         confidence, pred = torch.max(probs, dim=1)
+    #         label = "good" if pred.item() == 0 else "defective"
+    #         return label, float(confidence.item())
 
-    orig_label, orig_conf = predict(img_tensor)
-    adv_label, adv_conf = predict(pil_to_tensor(adv_img, device=device))
+    #orig_label, orig_conf = predict(img_tensor)
+    #adv_label, adv_conf = predict(pil_to_tensor(adv_img, device=device))
 
     return {
-        "original": {"label": orig_label, "confidence": orig_conf},
-        "adversarial": {"label": adv_label, "confidence": adv_conf},
+        # "original": {"label": orig_label, "confidence": orig_conf},
+        # "adversarial": {"label": adv_label, "confidence": adv_conf},
         "adversarial_image": adv_img  # <-- keep as PIL.Image
 }
 
@@ -215,14 +220,20 @@ def fgsm_attack(image: Image.Image, model, device, eps: float = 0.1):
 # Future Attacks Placeholder
 # -------------------------------
 def generate_adversarial(image: Image.Image, model, device, attack_name="fgsm", attack_params=None):
+   
+    logging.info("in-generate_adversarial - ", datetime.now().isoformat())
     if attack_params is None:
         attack_params = {}
 
     attack_name = attack_name.lower()
     if attack_name == "fgsm":
+        logging.info("attack_name == fgsm")
         eps = attack_params.get("eps", 0.1)
         return fgsm_attack(image, model=model, device=device, eps=eps)
     elif attack_name == "pgd":
+        logging.info("attack_name == pgd")
+        targeted_str = attack_params.get("targeted", "false")
+        targeted = str(targeted_str).lower() == "true"
         return pgd_attack(
             image,
             model=model,
@@ -230,7 +241,7 @@ def generate_adversarial(image: Image.Image, model, device, attack_name="fgsm", 
             eps=attack_params.get("eps", 0.1),
             eps_step=attack_params.get("eps_step", 0.01),
             max_iter=attack_params.get("max_iter", 10),
-            targeted=attack_params.get("targeted", False),
+            targeted=targeted,
             num_random_init=attack_params.get("num_random_init", 0)
         )
     elif attack_name == "cw":

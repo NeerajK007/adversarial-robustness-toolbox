@@ -1,277 +1,336 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Tiles Defect Classifier + Adversarial Attack</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 30px;
-      background: #f4f6f9;
-      color: #333;
-    }
-    .container {
-      max-width: 600px;
-      margin: auto;
-      background: #fff;
-      padding: 25px;
-      border-radius: 12px;
-      box-shadow: 0 6px 24px rgba(44,62,80,0.12);
-      border: 1px solid #e0e6ed;
-    }
-    h1 {
-      text-align: center;
-      color: #003366;
-      margin-bottom: 10px;
-    }
-    .section {
-      margin-bottom: 20px;
-    }
-    label {
-      font-weight: 600;
-      color: #34495e;
-      margin-top: 12px;
-      display: block;
-    }
-    input[type="file"] {
-      margin-top: 8px;
-    }
-    input[type="number"] {
-      width: 100%;
-      padding: 6px;
-      margin-top: 4px;
-      margin-bottom: 10px;
-      border-radius: 4px;
-      border: 1px solid #bfc9d1;
-      font-size: 15px;
-    }
-    select, button {
-      width: 100%;
-      padding: 10px;
-      margin-top: 10px;
-      border-radius: 6px;
-      border: 1px solid #bfc9d1;
-      font-size: 16px;
-      background: #f8fafc;
-      color: #2d3e50;
-      transition: border 0.2s;
-    }
-    button#attackBtn {
-      background: #e74c3c;
-      color: #fff;
-      font-weight: bold;
-      border: none;
-      margin-top: 18px;
-      transition: background 0.2s;
-    }
-    button#attackBtn:hover {
-      background: #c0392b;
-    }
-    .results {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 30px;
-    }
-    .result-card {
-      width: 48%;
-      background: #f0f4f8;
-      border: 1px solid #dbe3ea;
-      border-radius: 8px;
-      padding: 12px;
-      text-align: center;
-    }
-    .result-card img {
-      max-width: 100%;
-      border-radius: 6px;
-      margin-bottom: 8px;
-    }
-    .pred-label {
-      font-size: 17px;
-      font-weight: bold;
-      color: #2980b9;
-      margin-bottom: 6px;
-    }
-    .adv-label {
-      color: #e74c3c;
-    }
-  </style>
+<meta charset="UTF-8" />
+<title>Tiles Defect Classifier + Adversarial Attack</title>
+<style>
+:root { --card-w: 280px; --gap: 14px; }
+html, body { height: 100%; margin: 0; }
+body { font-family: Arial, sans-serif; background: #f4f6f9; color: #333; overflow-y: auto; }
+
+.app { min-height: 100vh; display: flex; flex-direction: column; }
+.header { flex: 0 0 auto; padding: 10px 16px; background: #fff; border-bottom: 1px solid #e0e6ed; color: #003366; font-weight: 700; }
+.flow { flex: 1 1 auto; display: flex; gap: var(--gap); padding: 12px 16px; overflow-x: auto; scroll-snap-type: x proximity; align-items: flex-start; }
+.step { flex: 0 0 var(--card-w); background: #fff; border: 1px solid #e0e6ed; border-radius: 10px; box-shadow: 0 4px 16px rgba(44,62,80,0.10); padding: 12px; scroll-snap-align: start; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.step h3 { margin: 0 0 4px 0; font-size: 16px; color: #2d3e50; }
+.arrow { flex: 0 0 12px; display: flex; align-items: center; justify-content: center; color: #8aa0b3; font-size: 24px; user-select: none; }
+.img-box { width: 224px; height: 224px; margin: 4px auto; background: #f8fafc; border: 1px solid #dbe3ea; border-radius: 8px; display: grid; place-items: center; overflow: hidden; }
+.img-box img { width: 224px; height: 224px; object-fit: cover; display: none; }
+label { font-weight: 600; color: #34495e; font-size: 13px; }
+input[type="file"], input[type="number"], select { width: 75%; padding: 6px; border: 1px solid #bfc9d1; border-radius: 6px; font-size: 14px; background: #f8fafc; color: #2d3e50; }
+button { width: 100%; padding: 9px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; }
+.btn-primary {
+  background: #0056b3; /* deeper professional blue */
+  color: #fff;
+}
+.btn-warn { background: #e74c3c; color: #fff; }
+.btn-disabled { opacity: 0.6; cursor: not-allowed; }
+.msg { min-height: 18px; font-size: 13px; color: #666; }
+.result { min-height: 56px; border: 1px dashed #dbe3ea; background: #f8fafc; border-radius: 6px; padding: 6px; font-size: 13px; line-height: 1.3; }
+.params { display: grid; gap: 6px; }
+.round-btn { width: 50px; height: 50px; border-radius: 50%; padding: 0; font-size: 24px; display: flex; align-items: center; justify-content: center; }
+.round-btn:hover { transform: scale(1.1); background: #c0392b; }
+
+.footer { flex: 0 0 auto; padding: 5px 8px; background: #fff; border-top: 1px solid #e0e6ed; color: #2d3e50; max-height: 35vh; overflow-y: auto; }
+#attackInfoBox { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 6px; margin-top: 1px; }
+.attack-info { background: #f8fafc; border: 1px solid #dbe3ea; border-radius: 4px; padding: 4px 6px; font-size: 11px; line-height: 1.4; }
+
+#previewBox,
+#advBox {
+  display: none;   /* hide until image is loaded */
+}
+#attackInfoLive {
+  font-size: 12px;
+  line-height: 1.4;
+  background: #f8fafc;
+  border: 1px solid #dbe3ea;
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.subheader {
+  font-size: 12px;
+  font-weight: 400;
+  color: #555;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+.subheader p {
+  margin: 2px 0; /* small spacing between lines */
+}
+
+.params input, .params select {
+  display: block;
+  width: 75%;
+}
+
+</style>
 </head>
 <body>
-  <div class="container">
-    <h1>Tiles Defect Classifier + Adversarial Attack</h1>
-
-    <!-- Image Upload -->
-    <div class="section">
-      <label for="imageInput">Upload Tile Image:</label>
-      <input type="file" id="imageInput" accept="image/*">
-    </div>
-
-    <!-- Attack Settings -->
-    <div class="section">
-      <label for="attackSelect">Select Attack:</label>
-      <select id="attackSelect">
-        <option value="fgsm" selected>FGSM (Fast Gradient)</option>
-        <option value="pgd">PGD</option>
-        <option value="cw">C&W</option>
-      </select>
-
-      <!-- FGSM/PGD Epsilon -->
-      <div id="epsDiv">
-        <label for="epsInput" style="margin-top:15px;">Epsilon:</label>
-        <input type="number" id="epsInput" value="0.1" step="0.01" min="0" max="1">
-      </div>
-
-      <!-- PGD Extra Params -->
-      <div id="pgdParams" style="display:none;">
-        <label for="epsStepInput">PGD Step Size (eps_step):</label>
-        <input type="number" id="epsStepInput" value="0.01" step="0.01" min="0" max="1">
-        <label for="pgdMaxIter">PGD Max Iter:</label>
-        <input type="number" id="pgdMaxIter" value="10" min="1" max="100">
-        <label for="pgdTargeted">Targeted:</label>
-        <select id="pgdTargeted">
-          <option value="false" selected>No</option>
-          <option value="true">Yes</option>
-        </select>
-        <label for="pgdNumRandomInit">Num Random Init:</label>
-        <input type="number" id="pgdNumRandomInit" value="0" min="0" max="10">
-      </div>
-
-      <!-- CW Params -->
-      <div id="cwParams" style="display:none;">
-        <label for="cwConfidence">C&W Confidence:</label>
-        <input type="number" id="cwConfidence" value="0.0" step="0.01" min="0" max="10">
-        <label for="cwLearningRate">Learning Rate:</label>
-        <input type="number" id="cwLearningRate" value="0.01" step="0.001" min="0" max="1">
-        <label for="cwBinarySearchSteps">Binary Search Steps:</label>
-        <input type="number" id="cwBinarySearchSteps" value="10" min="1" max="100">
-        <label for="cwMaxIter">Max Iter:</label>
-        <input type="number" id="cwMaxIter" value="10" min="1" max="100">
-        <label for="cwInitialConst">Initial Const:</label>
-        <input type="number" id="cwInitialConst" value="0.01" step="0.001" min="0" max="1">
-        <label for="cwTargeted">Targeted:</label>
-        <select id="cwTargeted">
-          <option value="false" selected>No</option>
-          <option value="true">Yes</option>
-        </select>
-      </div>
-
-      <button id="attackBtn">🚀 Launch Attack</button>
-    </div>
-
-    <!-- Side-by-side Results -->
-    <div class="results">
-      <div class="result-card">
-        <h3>Original Image</h3>
-        <img id="preview" src="" alt="" style="display:none; width:224px; height:224px; object-fit:cover;" />
-        <div id="origResult">No prediction yet.</div>
-      </div>
-      <div class="result-card">
-        <h3>Adversarial Image</h3>
-        <img id="advPreview" src="" alt="" style="display:none;" />
-        <div id="advResult">No prediction yet.</div>
-      </div>
+<div class="app">
+  <div class="header">
+    Tiles Defect Classifier
+    <div class="subheader">
+      <p>Model: MobileNetV2 (pretrained on ImageNet)</p>
+      <p>Datasets: MVTec Anomaly Detection (mvtec_ad)</p>
+      <p>Objective: Demo adversarial robustness by showing predictions on clean and attacked images.</p>
     </div>
   </div>
+  
+  <div class="flow" id="flow">
 
-  <script>
-    const imageInput = document.getElementById('imageInput');
-    const attackSelect = document.getElementById('attackSelect');
-    const epsDiv = document.getElementById('epsDiv');
-    const epsInput = document.getElementById('epsInput');
-    const pgdParams = document.getElementById('pgdParams');
-    const cwParams = document.getElementById('cwParams');
-    const attackBtn = document.getElementById('attackBtn');
-    const preview = document.getElementById('preview');
-    const advPreview = document.getElementById('advPreview');
-    const origResult = document.getElementById('origResult');
-    const advResult = document.getElementById('advResult');
+    <!-- 1. Original + Clean Prediction -->
+    <div class="step">
+      <h3>Original Image</h3>
+      <div class="img-box" id="previewBox"><img id="preview" alt="original preview" /></div>
+      <label for="imageInput">Upload:</label>
+      <input type="file" id="imageInput" accept="image/*" />
+      <button id="predictCleanBtn" class="btn-primary btn-disabled" disabled>Predict (Clean)</button>
+      <div class="msg" id="origMsg"></div>
+      <div id="origResult" class="result">No prediction yet.</div>
+    </div>
 
-    let selectedFile = null;
+    <div class="arrow">→</div>
 
-    imageInput.addEventListener('change', (event) => {
-      selectedFile = event.target.files[0];
-      if (selectedFile) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          preview.src = e.target.result;
-          preview.style.display = 'block';
-        };
-        reader.readAsDataURL(selectedFile);
-      }
-    });
+    <!-- 2. Attack Selection + Params -->
+    <div class="step">
+      <h3>Attack Config</h3>
+      <label for="attackSelect">Method:</label>
+      <select id="attackSelect">
+        <option value="" selected disabled>Select Attack</option>
+        <option value="fgsm">FGSM</option>
+        <option value="pgd">PGD</option>
+        <option value="cw">C&amp;W</option>
+      </select>
+      <div id="epsDiv" class="params" style="display:none;">
+        <label for="epsInput">Epsilon</label>
+        <input type="number" id="epsInput" value="0.1" step="0.01" min="0" max="1" />
+      </div>
+      <div id="pgdParams" class="params" style="display:none;">
+        <label for="epsStepInput">PGD Step Size</label>
+        <input type="number" id="epsStepInput" value="0.01" step="0.01" min="0" max="1" />
+        <label for="pgdMaxIter">PGD Max Iter</label>
+        <input type="number" id="pgdMaxIter" value="10" min="1" max="100" />
+        <!-- <label for="pgdTargeted">Targeted</label>
+        <select id="pgdTargeted"><option value="false" selected>No</option><option value="true">Yes</option></select> -->
+        <label for="pgdNumRandomInit">Num Random Init</label>
+        <input type="number" id="pgdNumRandomInit" value="0" min="0" max="10" />
+      </div>
+      <div id="cwParams" class="params" style="display:none;">
+        <label for="cwConfidence">C&amp;W Confidence</label>
+        <input type="number" id="cwConfidence" value="0.0" step="0.01" min="0" max="10" />
+        <label for="cwLearningRate">Learning Rate</label>
+        <input type="number" id="cwLearningRate" value="0.01" step="0.001" min="0" max="1" />
+        <label for="cwBinarySearchSteps">Binary Search Steps</label>
+        <input type="number" id="cwBinarySearchSteps" value="10" min="1" max="100" />
+        <label for="cwMaxIter">Max Iter</label>
+        <input type="number" id="cwMaxIter" value="10" min="1" max="200" />
+        <label for="cwInitialConst">Initial Const</label>
+        <input type="number" id="cwInitialConst" value="0.01" step="0.001" min="0" max="1" />
+        <label for="cwTargeted">Targeted</label>
+        <select id="cwTargeted"><option value="false" selected>No</option><option value="true">Yes</option></select>
+      </div>
 
+      <div id="attackInfoLive" style="margin-top: 12px;"></div>
+
+    </div>
+
+    <div class="arrow">→</div>
+
+    <!-- 3. Generate Adversarial -->
+    <div class="step" style="flex:0 0 auto; display:flex; align-items:center; justify-content:center; padding:12px;">
+      <h3>Generate Attack Image</h3>
+      <button id="generateAdvBtn" class="btn-warn round-btn" disabled>⚡</button>
+    </div>
+
+    <div class="arrow">→</div>
+
+    <!-- 4. Adv Prediction -->
+    <div class="step">
+      <h3>Attack Image</h3>
+      <div class="img-box" id="advBox"><img id="advPreview" alt="adversarial preview" /></div>
+      <button id="predictAdvBtn" class="btn-primary btn-disabled" disabled>Predict (Adversarial)</button>
+      <div id="advResult" class="result">No prediction yet.</div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <p style="margin:0; font-size:12px; color:#555;">
+      Demo: Tiles Defect Classifier using MobileNetV2.
+    </p>
+  </div>
+  
+
+</div>
+
+<script>
+const imageInput = document.getElementById('imageInput');
+const predictCleanBtn = document.getElementById('predictCleanBtn');
+const generateAdvBtn = document.getElementById('generateAdvBtn');
+const predictAdvBtn = document.getElementById('predictAdvBtn');
+const attackSelect = document.getElementById('attackSelect');
+const epsDiv = document.getElementById('epsDiv');
+const epsInput = document.getElementById('epsInput');
+const pgdParams = document.getElementById('pgdParams');
+const cwParams = document.getElementById('cwParams');
+const preview = document.getElementById('preview');
+const advPreview = document.getElementById('advPreview');
+const previewBox = document.getElementById('previewBox');
+const advBox = document.getElementById('advBox');
+const origResult = document.getElementById('origResult');
+const advResult = document.getElementById('advResult');
+const origMsg = document.getElementById('origMsg');
+
+let originalFile=null, advFile=null;
+
+function base64ToFile(base64Str, filename='adv.png'){
+  const byteString = atob(base64Str);
+  const ab = new ArrayBuffer(byteString.length);
+  const ia = new Uint8Array(ab);
+  for(let i=0;i<byteString.length;i++) ia[i]=byteString.charCodeAt(i);
+  return new File([new Blob([ab], {type:'image/png'})], filename, {type:'image/png'});
+}
+
+imageInput.addEventListener('change', e=>{
+  originalFile=e.target.files[0];
+  advFile=null;
+  advPreview.style.display='none';
+  advResult.textContent='No prediction yet.';
+  predictAdvBtn.disabled=true; predictAdvBtn.classList.add('btn-disabled');
+
+  if(originalFile){
+    const reader=new FileReader();
+    reader.onload=e=>{
+      preview.src=e.target.result;
+      preview.style.display='block';
+      previewBox.style.display='grid';
+      predictCleanBtn.disabled=false; predictCleanBtn.classList.remove('btn-disabled');
+      generateAdvBtn.disabled=false; generateAdvBtn.classList.remove('btn-disabled');
+      origMsg.textContent='Image loaded.';
+    };
+    reader.readAsDataURL(originalFile);
+  } else {
+    predictCleanBtn.disabled=true; predictCleanBtn.classList.add('btn-disabled');
+    generateAdvBtn.disabled=true; generateAdvBtn.classList.add('btn-disabled');
+    origMsg.textContent='';
+  }
+});
+
+attackSelect.addEventListener('change', function(){
+  if(this.value==='fgsm'){ epsDiv.style.display='block'; pgdParams.style.display='none'; cwParams.style.display='none'; }
+  else if(this.value==='pgd'){ epsDiv.style.display='block'; pgdParams.style.display='grid'; cwParams.style.display='none'; }
+  else if(this.value==='cw'){ epsDiv.style.display='none'; pgdParams.style.display='none'; cwParams.style.display='grid'; }
+});
+
+predictCleanBtn.addEventListener('click', async ()=>{
+  if(!originalFile) return;
+  origResult.textContent='Processing...';
+  const fd=new FormData();
+  fd.append('file', originalFile);
+  try{
+    const resp=await fetch('/predict/', {method:'POST', body:fd});
+    const data=await resp.json();
+    if(data.error){ origResult.textContent=''; alert('API Error: '+data.error); return; }
+    origResult.innerHTML=`Original prediction:<b>${data.label}</b><br>Confidence: ${(data.confidence*100).toFixed(1)} %`;
+  }catch(err){ origResult.textContent=''; alert('Clean prediction failed: '+err); }
+});
+
+generateAdvBtn.addEventListener('click', async ()=>{
+  if(!originalFile) return;
+
+  if(!attackSelect.value){   // <-- check if attack is selected
+    alert('Please select an attack method first.');
+    return;
+  }
+
+  advResult.textContent='Generating adversarial...';
+  advPreview.style.display='none';
+  predictAdvBtn.disabled=true; predictAdvBtn.classList.add('btn-disabled');
+
+  const fd=new FormData();
+  fd.append('file', originalFile);
+  fd.append('attack', attackSelect.value);
+  if(attackSelect.value==='fgsm') fd.append('eps', epsInput.value);
+  else if(attackSelect.value==='pgd'){
+    fd.append('eps', epsInput.value);
+    fd.append('eps_step', document.getElementById('epsStepInput').value);
+    fd.append('max_iter', document.getElementById('pgdMaxIter').value);
+    fd.append('targeted', document.getElementById('pgdTargeted').value);
+    fd.append('num_random_init', document.getElementById('pgdNumRandomInit').value);
+  } else if(attackSelect.value==='cw'){
+    fd.append('confidence', document.getElementById('cwConfidence').value);
+    fd.append('learning_rate', document.getElementById('cwLearningRate').value);
+    fd.append('binary_search_steps', document.getElementById('cwBinarySearchSteps').value);
+    fd.append('max_iter', document.getElementById('cwMaxIter').value);
+    fd.append('initial_const', document.getElementById('cwInitialConst').value);
+    fd.append('targeted', document.getElementById('cwTargeted').value);
+  }
+
+  try{
+    const resp=await fetch('/attack',{method:'POST',body:fd});
+    const data=await resp.json();
+    if(data.error){ advResult.textContent='No prediction yet.'; alert('Attack Error: '+data.error); return; }
+    if(data.adv_image_base64){
+      advPreview.src='data:image/png;base64,'+data.adv_image_base64;
+      advPreview.style.display='block'; advBox.style.display='grid';
+      advFile=base64ToFile(data.adv_image_base64);
+      predictAdvBtn.disabled=false; predictAdvBtn.classList.remove('btn-disabled');
+      advResult.textContent='Adversarial image ready. Predict it →';
+    }
+  }catch(err){ advResult.textContent='No prediction yet.'; alert('Attack failed: '+err); }
+});
+
+predictAdvBtn.addEventListener('click', async ()=>{
+  if(!advFile) return;
+  advResult.textContent='Processing...';
+  const fd=new FormData(); fd.append('file', advFile);
+  try{
+    const resp=await fetch('/predict/', {method:'POST', body:fd});
+    const data=await resp.json();
+    if(data.error){ advResult.textContent=''; alert('API Error: '+data.error); return; }
+    advResult.innerHTML=`Attack prediction:<b>${data.label}</b><br>Confidence: ${(data.confidence*100).toFixed(1)} %`;
+  }catch(err){ advResult.textContent=''; alert('Adversarial prediction failed: '+err); }
+});
+
+
+    const attackInfoLive = document.getElementById('attackInfoLive');
+
+    const attackInfoText = {
+      fgsm: `<b>FGSM: Fast Gradient Sign Method</b> Fast gradient one-step attack.<br>• <i>Epsilon</i>: Strength of pixel change.`,
+      pgd: `<b>PGD: Projected Gradient Descent</b> Iterative attack with noise restarts.<br>• <i>Epsilon</i>: Max allowed pixel change.<br>• <i>Step Size</i>: Change per step.<br>• <i>Max Iter</i>: Number of steps.<br>• <i>Targeted</i>: Force toward a label.<br>• <i>Num Random Init</i>: Restarts for stronger attack.`,
+      cw: `<b>C&amp;W: Carlini & Wagner Attack</b> Optimization-based strong attack.<br>• <i>Confidence</i>: Push away from true label.<br>• <i>Learning Rate</i>: Step size for optimization.<br>• <i>Binary Search Steps</i>: Refines penalty.<br>• <i>Max Iter</i>: Iterations allowed.<br>• <i>Initial Const</i>: Starting penalty factor.<br>• <i>Targeted</i>: Attack aims for a chosen label.`
+    };
+
+    function updateAttackInfoLive() {
+      const attack = attackSelect.value;
+      attackInfoLive.innerHTML = attackInfoText[attack] || '';
+    }
+
+    // Initial display
+    updateAttackInfoLive();
+
+    // Update on attack change
     attackSelect.addEventListener('change', function() {
+      updateAttackInfoLive();
+
       if (this.value === 'fgsm') {
         epsDiv.style.display = 'block';
         pgdParams.style.display = 'none';
         cwParams.style.display = 'none';
       } else if (this.value === 'pgd') {
         epsDiv.style.display = 'block';
-        pgdParams.style.display = 'block';
+        pgdParams.style.display = 'grid';
         cwParams.style.display = 'none';
       } else if (this.value === 'cw') {
         epsDiv.style.display = 'none';
         pgdParams.style.display = 'none';
-        cwParams.style.display = 'block';
+        cwParams.style.display = 'grid';
       }
     });
 
-    attackBtn.addEventListener('click', async function() {
-      if (!selectedFile) {
-        alert("Please upload an image first.");
-        return;
-      }
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-      formData.append('attack', attackSelect.value);
-
-      if (attackSelect.value === 'fgsm') {
-        formData.append('eps', epsInput.value);
-      } else if (attackSelect.value === 'pgd') {
-        formData.append('eps', epsInput.value);
-        formData.append('eps_step', document.getElementById('epsStepInput').value);
-        formData.append('max_iter', document.getElementById('pgdMaxIter').value);
-        formData.append('targeted', document.getElementById('pgdTargeted').value);
-        formData.append('num_random_init', document.getElementById('pgdNumRandomInit').value);
-      } else if (attackSelect.value === 'cw') {
-        formData.append('confidence', document.getElementById('cwConfidence').value);
-        formData.append('learning_rate', document.getElementById('cwLearningRate').value);
-        formData.append('binary_search_steps', document.getElementById('cwBinarySearchSteps').value);
-        formData.append('max_iter', document.getElementById('cwMaxIter').value);
-        formData.append('initial_const', document.getElementById('cwInitialConst').value);
-        formData.append('targeted', document.getElementById('cwTargeted').value);
-      }
-
-      origResult.textContent = "Processing...";
-      advResult.textContent = "Processing...";
-      advPreview.style.display = 'none';
-
-      try {
-  const response = await fetch('/predict_adv', {
-    method: 'POST',
-    body: formData
-  });
-  const data = await response.json();
-  if (data.error) {
-    origResult.textContent = "";
-    advResult.textContent = "";
-    advPreview.style.display = 'none';
-    alert("API Error: " + data.error);
-    return;
-  }
-  origResult.innerHTML = `Original prediction:<br>${data.original_label}<br>Confidence: ${(data.original_confidence * 100).toFixed(1)} %`;
-advResult.innerHTML = `Adv prediction:<br>${data.adv_label}<br>Confidence: ${(data.adv_confidence * 100).toFixed(1)} %`;
-  if (data.adv_image_base64) {
-    advPreview.src = "data:image/png;base64," + data.adv_image_base64;
-    advPreview.style.display = 'block';
-  }
-} catch (err) {
-  origResult.textContent = "";
-  advResult.textContent = "";
-  advPreview.style.display = 'none';
-  alert("Attack failed: " + err);
-}
-    });
-  </script>
+  
+</script>
 </body>
 </html>
