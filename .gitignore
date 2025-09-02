@@ -111,3 +111,6 @@ demo/pics/*
 !notebooks/adaptive_defence_evaluations/*.ipynb
 !notebooks/adversarial_patch/*.ipynb
 !notebooks/art_evaluations/*.ipynb
+/examples/be-secure/tmp
+/examples/be-secure/data
+/examples/be-secure/mobilenetv2*

@@ -10,112 +10,95 @@
       background: #f4f6f9;
       color: #333;
     }
-
+    .container {
+      max-width: 600px;
+      margin: auto;
+      background: #fff;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 6px 24px rgba(44,62,80,0.12);
+      border: 1px solid #e0e6ed;
+    }
     h1 {
       text-align: center;
       color: #003366;
       margin-bottom: 10px;
     }
-
-    h5 {
-      text-align: center;
-      color: #003366;
-      margin-bottom: 10px;
-    }
-
-    .container {
-      max-width: 1000px;
-      margin: auto;
-      background: #fff;
-      padding: 25px;
-      border-radius: 12px;
-      box-shadow: 0px 4px 15px rgba(0,0,0,0.1);
-    }
-
     .section {
-      margin-bottom: 25px;
-      padding: 15px;
-      border: 1px solid #ddd;
-      border-radius: 10px;
-      background: #fafafa;
+      margin-bottom: 20px;
     }
-
     label {
-      font-weight: bold;
-      margin-bottom: 5px;
-      display: inline-block;
+      font-weight: 600;
+      color: #34495e;
+      margin-top: 12px;
+      display: block;
     }
-
-    input[type="file"], 
-    select, 
+    input[type="file"] {
+      margin-top: 8px;
+    }
     input[type="number"] {
-      padding: 8px;
-      margin-top: 5px;
       width: 100%;
-      max-width: 300px;
-      border-radius: 5px;
-      border: 1px solid #ccc;
-    }
-
-    button {
-      margin-top: 15px;
-      padding: 10px 20px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
+      padding: 6px;
+      margin-top: 4px;
+      margin-bottom: 10px;
+      border-radius: 4px;
+      border: 1px solid #bfc9d1;
       font-size: 15px;
     }
-
-    #attackBtn {
-      background-color: #c0392b;
-      color: white;
+    select, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 6px;
+      border: 1px solid #bfc9d1;
+      font-size: 16px;
+      background: #f8fafc;
+      color: #2d3e50;
+      transition: border 0.2s;
+    }
+    button#attackBtn {
+      background: #e74c3c;
+      color: #fff;
       font-weight: bold;
+      border: none;
+      margin-top: 18px;
+      transition: background 0.2s;
     }
-
-    #attackBtn:hover {
-      background-color: #a93226;
+    button#attackBtn:hover {
+      background: #c0392b;
     }
-
     .results {
       display: flex;
       justify-content: space-between;
-      gap: 30px;
-      margin-top: 20px;
+      margin-top: 30px;
     }
-
     .result-card {
-      flex: 1;
+      width: 48%;
+      background: #f0f4f8;
+      border: 1px solid #dbe3ea;
+      border-radius: 8px;
+      padding: 12px;
       text-align: center;
-      background: #fff;
-      padding: 15px;
-      border-radius: 10px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
-
-    img {
+    .result-card img {
       max-width: 100%;
-      border-radius: 10px;
-      margin-bottom: 10px;
-      border: 2px solid #eee;
+      border-radius: 6px;
+      margin-bottom: 8px;
     }
-
-    .good {
-      color: green;
+    .pred-label {
+      font-size: 17px;
       font-weight: bold;
+      color: #2980b9;
+      margin-bottom: 6px;
     }
-
-    .defective {
-      color: red;
-      font-weight: bold;
+    .adv-label {
+      color: #e74c3c;
     }
   </style>
 </head>
 <body>
-  <h1>Tiles Defect Classifier + Adversarial Attack</h1>
-  <h5>Datasets: mvtec_ad || ML Model: MobileNet_V2 - pre-trained on ImageNet</h3>
-
-
   <div class="container">
+    <h1>Tiles Defect Classifier + Adversarial Attack</h1>
 
     <!-- Image Upload -->
     <div class="section">
@@ -128,12 +111,49 @@
       <label for="attackSelect">Select Attack:</label>
       <select id="attackSelect">
         <option value="fgsm" selected>FGSM (Fast Gradient)</option>
-        <option value="pgd" disabled>PGD (Coming Soon)</option>
-        <option value="cw" disabled>C&W (Coming Soon)</option>
+        <option value="pgd">PGD</option>
+        <option value="cw">C&W</option>
       </select>
 
-      <label for="epsInput" style="margin-top:15px;">FGSM Epsilon:</label>
-      <input type="number" id="epsInput" value="0.1" step="0.01" min="0" max="1">
+      <!-- FGSM/PGD Epsilon -->
+      <div id="epsDiv">
+        <label for="epsInput" style="margin-top:15px;">Epsilon:</label>
+        <input type="number" id="epsInput" value="0.1" step="0.01" min="0" max="1">
+      </div>
+
+      <!-- PGD Extra Params -->
+      <div id="pgdParams" style="display:none;">
+        <label for="epsStepInput">PGD Step Size (eps_step):</label>
+        <input type="number" id="epsStepInput" value="0.01" step="0.01" min="0" max="1">
+        <label for="pgdMaxIter">PGD Max Iter:</label>
+        <input type="number" id="pgdMaxIter" value="10" min="1" max="100">
+        <label for="pgdTargeted">Targeted:</label>
+        <select id="pgdTargeted">
+          <option value="false" selected>No</option>
+          <option value="true">Yes</option>
+        </select>
+        <label for="pgdNumRandomInit">Num Random Init:</label>
+        <input type="number" id="pgdNumRandomInit" value="0" min="0" max="10">
+      </div>
+
+      <!-- CW Params -->
+      <div id="cwParams" style="display:none;">
+        <label for="cwConfidence">C&W Confidence:</label>
+        <input type="number" id="cwConfidence" value="0.0" step="0.01" min="0" max="10">
+        <label for="cwLearningRate">Learning Rate:</label>
+        <input type="number" id="cwLearningRate" value="0.01" step="0.001" min="0" max="1">
+        <label for="cwBinarySearchSteps">Binary Search Steps:</label>
+        <input type="number" id="cwBinarySearchSteps" value="10" min="1" max="100">
+        <label for="cwMaxIter">Max Iter:</label>
+        <input type="number" id="cwMaxIter" value="10" min="1" max="100">
+        <label for="cwInitialConst">Initial Const:</label>
+        <input type="number" id="cwInitialConst" value="0.01" step="0.001" min="0" max="1">
+        <label for="cwTargeted">Targeted:</label>
+        <select id="cwTargeted">
+          <option value="false" selected>No</option>
+          <option value="true">Yes</option>
+        </select>
+      </div>
 
       <button id="attackBtn">🚀 Launch Attack</button>
     </div>
@@ -142,23 +162,24 @@
     <div class="results">
       <div class="result-card">
         <h3>Original Image</h3>
-        <img id="preview" src="" alt="" />
+        <img id="preview" src="" alt="" style="display:none; width:224px; height:224px; object-fit:cover;" />
         <div id="origResult">No prediction yet.</div>
       </div>
-
       <div class="result-card">
         <h3>Adversarial Image</h3>
-        <img id="advPreview" src="" alt="" />
+        <img id="advPreview" src="" alt="" style="display:none;" />
         <div id="advResult">No prediction yet.</div>
       </div>
     </div>
-
   </div>
 
   <script>
     const imageInput = document.getElementById('imageInput');
     const attackSelect = document.getElementById('attackSelect');
+    const epsDiv = document.getElementById('epsDiv');
     const epsInput = document.getElementById('epsInput');
+    const pgdParams = document.getElementById('pgdParams');
+    const cwParams = document.getElementById('cwParams');
     const attackBtn = document.getElementById('attackBtn');
     const preview = document.getElementById('preview');
     const advPreview = document.getElementById('advPreview');
@@ -168,73 +189,88 @@
     let selectedFile = null;
 
     imageInput.addEventListener('change', (event) => {
-    selectedFile = event.target.files[0];
-    if (selectedFile) {
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const img = new Image();
-        img.onload = function() {
-          // Create a canvas of 224x224
-          const canvas = document.createElement('canvas');
-          canvas.width = 224;
-          canvas.height = 224;
-          const ctx = canvas.getContext('2d');
-
-          // Draw the uploaded image into the canvas, resized
-          ctx.drawImage(img, 0, 0, 224, 224);
-
-          // Set the preview image src to the resized canvas output
-          preview.src = canvas.toDataURL("image/png");
+      selectedFile = event.target.files[0];
+      if (selectedFile) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          preview.src = e.target.result;
+          preview.style.display = 'block';
         };
-        img.src = e.target.result;
-    };
-    reader.readAsDataURL(selectedFile);
+        reader.readAsDataURL(selectedFile);
+      }
+    });
 
-    // reset results
-    resultDiv.innerHTML = '';
-    advPreview.src = '';
-  }
-});
+    attackSelect.addEventListener('change', function() {
+      if (this.value === 'fgsm') {
+        epsDiv.style.display = 'block';
+        pgdParams.style.display = 'none';
+        cwParams.style.display = 'none';
+      } else if (this.value === 'pgd') {
+        epsDiv.style.display = 'block';
+        pgdParams.style.display = 'block';
+        cwParams.style.display = 'none';
+      } else if (this.value === 'cw') {
+        epsDiv.style.display = 'none';
+        pgdParams.style.display = 'none';
+        cwParams.style.display = 'block';
+      }
+    });
 
+    attackBtn.addEventListener('click', async function() {
+      if (!selectedFile) {
+        alert("Please upload an image first.");
+        return;
+      }
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('attack', attackSelect.value);
 
-    // ---- Adversarial Attack ----
-    attackBtn.addEventListener('click', async () => {
-      if (!selectedFile) return alert("Please upload a tile image first!");
+      if (attackSelect.value === 'fgsm') {
+        formData.append('eps', epsInput.value);
+      } else if (attackSelect.value === 'pgd') {
+        formData.append('eps', epsInput.value);
+        formData.append('eps_step', document.getElementById('epsStepInput').value);
+        formData.append('max_iter', document.getElementById('pgdMaxIter').value);
+        formData.append('targeted', document.getElementById('pgdTargeted').value);
+        formData.append('num_random_init', document.getElementById('pgdNumRandomInit').value);
+      } else if (attackSelect.value === 'cw') {
+        formData.append('confidence', document.getElementById('cwConfidence').value);
+        formData.append('learning_rate', document.getElementById('cwLearningRate').value);
+        formData.append('binary_search_steps', document.getElementById('cwBinarySearchSteps').value);
+        formData.append('max_iter', document.getElementById('cwMaxIter').value);
+        formData.append('initial_const', document.getElementById('cwInitialConst').value);
+        formData.append('targeted', document.getElementById('cwTargeted').value);
+      }
 
-      origResult.innerHTML = "⚙️ Running attack...";
-      advResult.innerHTML = "⚙️ Running attack...";
-
-      const advForm = new FormData();
-      advForm.append("file", selectedFile);
-      advForm.append("attack", attackSelect.value);
-      advForm.append("eps", parseFloat(epsInput.value));
+      origResult.textContent = "Processing...";
+      advResult.textContent = "Processing...";
+      advPreview.style.display = 'none';
 
       try {
-        const advResponse = await fetch("http://127.0.0.1:8000/predict_adv/", {
-          method: "POST",
-          body: advForm
-        });
-        if (!advResponse.ok) throw new Error(`HTTP error ${advResponse.status}`);
-        const advData = await advResponse.json();
-
-        const origClass = advData.original_label === "good" ? "good" : "defective";
-        const advClass = advData.adv_label === "good" ? "good" : "defective";
-
-        origResult.innerHTML = `
-          <strong>Prediction:</strong> <span class="${origClass}">${advData.original_label}</span> <br>
-          Confidence: ${(advData.original_confidence*100).toFixed(2)}%
-        `;
-
-        advResult.innerHTML = `
-          <strong>Prediction:</strong> <span class="${advClass}">${advData.adv_label}</span> <br>
-          Confidence: ${(advData.adv_confidence*100).toFixed(2)}%
-        `;
-
-        advPreview.src = `data:image/png;base64,${advData.adv_image_base64}`;
-      } catch (error) {
-        origResult.innerHTML = `<span style="color:red">Error: ${error}</span>`;
-        advResult.innerHTML = `<span style="color:red">Error: ${error}</span>`;
-      }
+  const response = await fetch('/predict_adv', {
+    method: 'POST',
+    body: formData
+  });
+  const data = await response.json();
+  if (data.error) {
+    origResult.textContent = "";
+    advResult.textContent = "";
+    advPreview.style.display = 'none';
+    alert("API Error: " + data.error);
+    return;
+  }
+  origResult.innerHTML = `Original prediction:<br>${data.original_label}<br>Confidence: ${(data.original_confidence * 100).toFixed(1)} %`;
+advResult.innerHTML = `Adv prediction:<br>${data.adv_label}<br>Confidence: ${(data.adv_confidence * 100).toFixed(1)} %`;
+  if (data.adv_image_base64) {
+    advPreview.src = "data:image/png;base64," + data.adv_image_base64;
+    advPreview.style.display = 'block';
+  }
+} catch (err) {
+  origResult.textContent = "";
+  advResult.textContent = "";
+  advPreview.style.display = 'none';
+  alert("Attack failed: " + err);
+}
     });
   </script>
 </body>

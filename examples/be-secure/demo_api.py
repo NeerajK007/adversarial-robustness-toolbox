@@ -8,16 +8,19 @@ import torch
 import torch.nn as nn
 from torchvision import transforms, models
 from torchvision.models import MobileNet_V2_Weights
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import JSONResponse
-from demo_fgsm_attack import generate_adversarial  # your attack module
+from demo_attack import generate_adversarial  # your attack module
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 
+from typing import Optional
+
 # -------------------------------
 # Logging
 # -------------------------------
+import logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 # -------------------------------
@@ -86,32 +89,53 @@ async def predict(file: UploadFile = File(...)):
         logging.error(f"Prediction error: {e}")
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
-@app.post("/predict_adv/")
-async def predict_adv(file: UploadFile = File(...), attack: str = "fgsm", eps: float = 0.1):
-    """
-    attack: 'fgsm', 'pgd', 'cw' (only FGSM implemented for now)
-    eps: epsilon for FGSM
-    """
+
+@app.post("/predict_adv")
+async def predict_adv(
+    file: UploadFile = File(...),
+    attack: str = Form("fgsm"),
+    eps: Optional[float] = Form(None),
+    eps_step: Optional[float] = Form(None),
+    max_iter: Optional[int] = Form(None),
+    targeted: Optional[bool] = Form(None),
+    num_random_init: Optional[int] = Form(None),
+    confidence: Optional[float] = Form(None),
+    learning_rate: Optional[float] = Form(None),
+    binary_search_steps: Optional[int] = Form(None),
+    initial_const: Optional[float] = Form(None)
+):
     try:
-        image_bytes = await file.read()
-        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        logging.info(f"Received attack type: {attack}")
+        image = Image.open(io.BytesIO(await file.read())).convert("RGB")
 
-        #adv_result = generate_adversarial(image, attack_name=attack, attack_params={"eps": eps})
+        # Collect attack parameters dynamically
+        attack_params = {}
+        if eps is not None: attack_params["eps"] = eps
+        if eps_step is not None: attack_params["eps_step"] = eps_step
+        if max_iter is not None: attack_params["max_iter"] = max_iter
+        if targeted is not None: attack_params["targeted"] = targeted
+        if num_random_init is not None: attack_params["num_random_init"] = num_random_init
+        if confidence is not None: attack_params["confidence"] = confidence
+        if learning_rate is not None: attack_params["learning_rate"] = learning_rate
+        if binary_search_steps is not None: attack_params["binary_search_steps"] = binary_search_steps
+        if initial_const is not None: attack_params["initial_const"] = initial_const
 
-        adv_result = generate_adversarial(image, model=model, device=device,
-                                  attack_name=attack, attack_params={"eps": eps})
 
-        # adv_result should return dict: {"adv_image": PIL.Image, "pred_label": str, "confidence": float}
-        adv_image = adv_result["adversarial_image"]
+        logging.info("calling generate_adversarial() from demo_attack") 
+        result = generate_adversarial(
+            image, model, device, attack_name=attack, attack_params=attack_params
+        )
+
+        adv_image = result["adversarial_image"]
         buffer = io.BytesIO()
         adv_image.save(buffer, format="PNG")
         adv_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
 
         response = {
-            "original_label": adv_result["original"]["label"],
-            "original_confidence": adv_result["original"]["confidence"],
-            "adv_label": adv_result["adversarial"]["label"],
-            "adv_confidence": adv_result["adversarial"]["confidence"],
+            "original_label": result["original"]["label"],
+            "original_confidence": result["original"]["confidence"],
+            "adv_label": result["adversarial"]["label"],
+            "adv_confidence": result["adversarial"]["confidence"],
             "adv_image_base64": adv_base64
         }
         return JSONResponse(content=response)
