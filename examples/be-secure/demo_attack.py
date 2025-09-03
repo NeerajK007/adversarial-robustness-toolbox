@@ -155,7 +155,7 @@ def pgd_attack(
         eps=eps,
         eps_step=eps_step,
         max_iter=max_iter,
-        targeted=targeted,
+        #targeted=targeted,
         num_random_init=num_random_init,
         batch_size=1
     )
