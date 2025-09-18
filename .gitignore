@@ -93,7 +93,7 @@ ENV/
 *config.ini
 
 # ignore pictures
-*.jpg
+#*.jpg
 demo/pics/*
 
 # Things TF might pull when testing
