@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Tiles Defect Classifier + Adversarial Attack</title>
+<title>ML Adversarial Attack</title>
 <style>
 :root { --card-w: 280px; --gap: 14px; }
 html, body { height: 100%; margin: 0; }
@@ -281,6 +281,11 @@ button { width: 100%; padding: 9px; border-radius: 8px; border: none; font-weigh
       <div class="step-badge">4</div>
       <h3>Attack Image</h3>
       <div class="img-box" id="advBox"><img id="advPreview" alt="adversarial preview" /></div>
+      <label for="variantSelect">Model:</label>
+        <select id="variantSelect">
+          <option value="normal" selected>Normal</option>
+          <option value="adv_trained">Adv-Trained</option>
+        </select>
       <button id="predictAdvBtn" class="btn-primary btn-disabled" disabled>Predict (Adversarial)</button>
       <div id="advResult" class="result">No prediction yet.</div>
     </div>
@@ -454,6 +459,7 @@ button { width: 100%; padding: 9px; border-radius: 8px; border: none; font-weigh
     const fd = new FormData();
     fd.append('file', advFile);
     fd.append('demo_type', demoSelect.value);
+    fd.append("variant", document.getElementById("variantSelect").value);
 
     try {
       const resp = await fetch('/predict/', { method: 'POST', body: fd });
@@ -514,13 +520,13 @@ button { width: 100%; padding: 9px; border-radius: 8px; border: none; font-weigh
       const demoInfo = document.getElementById('demoInfo');
       const demoDetails = {
         "Tile-defect-misclassification": {
-          model: "MobileNetV2 (pretrained on ImageNet)",
+          model: "MobileNetV2 (pretrained on ImageNet, fine-tuned on mvtec_ad Datasets)",
           dataset: "MVTec Anomaly Detection (mvtec_ad)",
           objective: "Demo adversarial robustness by showing predictions on clean and attacked images.",
           business: "Help enterprises minimize defective products, lower operational costs, and enhance overall manufacturing efficiency."
         },
         "Indian-trafic-signal-misclassification": {
-          model: "ResNet50 (pretrained on Traffic Dataset)",
+          model: "MobileNetV2 (pretrained on ImageNet, fine-tuned on Indian Traffic Signals Dataset)",
           dataset: "Indian Traffic Signals Dataset",
           objective: "Demonstrate model reliability in real-world traffic scenarios under adversarial attacks.",
           business: "Support safe and reliable traffic signal detection for smart city applications."

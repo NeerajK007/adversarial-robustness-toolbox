@@ -32,7 +32,7 @@ MODEL_REGISTRY = {
     "Indian-trafic-signal-misclassification": {
         "model_fn": models.mobilenet_v2,
         "num_classes": 4,
-        "weights_path": "weights/mobilenetv2_traffic_signs.pth"
+        "weights_path": "weights/1_mobilenetv2_traffic_signs.pth"
     }
     # future demos can be added here
 }
@@ -40,12 +40,18 @@ MODEL_REGISTRY = {
 # -------------------------------
 # Load model helper
 # -------------------------------
-def load_demo_model(demo_type: str, device):
+def load_demo_model(demo_type: str, device, variant="normal"):
     logging.info(f"demo_type: {demo_type}")
     if demo_type not in MODEL_REGISTRY:
         raise ValueError(f"Unknown demo_type: {demo_type}")
     
     model_registry = MODEL_REGISTRY[demo_type]
+     # default path
+    weights_path = model_registry["weights_path"]
+    # switch only for adv-trained variant
+    if variant == "adv_trained" and demo_type == "Indian-trafic-signal-misclassification":
+        weights_path = "weights/20250911_121629_mobilenetv2_traffic_signs_AdvTrained.pth"
+
     
     # Load base model
     model = model_registry["model_fn"](weights=MobileNet_V2_Weights.IMAGENET1K_V1)
@@ -57,11 +63,11 @@ def load_demo_model(demo_type: str, device):
     model.classifier[1] = nn.Linear(in_features, model_registry["num_classes"])
     
     # Load finetuned weights
-    model.load_state_dict(torch.load(model_registry["weights_path"], map_location=device))
+    model.load_state_dict(torch.load(weights_path, map_location=device))
     model.to(device)
     model.eval()
     
-    logging.info(f"Loaded {demo_type} model with weights: {model_registry['weights_path']}")
+    logging.info(f"Loaded {demo_type} model with weights: {weights_path}")
     return model
 
 # -------------------------------
@@ -90,14 +96,18 @@ def read_root():
 # Predict endpoint
 # -------------------------------
 @app.post("/predict/")
-async def predict(file: UploadFile = File(...), demo_type: str = Form(...)):
+async def predict(
+    file: UploadFile = File(...),
+    demo_type: str = Form(...),
+    variant: str = Form("normal")
+    ):
     try:
         logging.info(f"/predict calling...")
         image_bytes = await file.read()
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        model = load_demo_model(demo_type, device)
+        model = load_demo_model(demo_type, device, variant=variant)
         
         transform = transforms.Compose([
             transforms.Resize((224, 224)),
@@ -115,7 +125,9 @@ async def predict(file: UploadFile = File(...), demo_type: str = Form(...)):
         if demo_type == "Tile-defect-misclassification":
             label = "good" if pred.item() == 0 else "defective"
         elif demo_type == "Indian-trafic-signal-misclassification":
-            class_labels = ["CROSS_ROAD", "FALLING_ROCKS", "NO_ENTRY", "PEDESTRIAN_CROSSING"]
+            #class_labels = ["CROSS_ROAD", "FALLING_ROCKS", "NO_ENTRY", "PEDESTRIAN_CROSSING", "SCHOOL_AHEAD", "SPEED_LIMIT_70", "SPEED_LIMIT_80", "STOP"]
+            class_labels = ["SCHOOL_AHEAD", "SPEED_LIMIT_70", "SPEED_LIMIT_80", "STOP"]
+            logging.info(f"pred: {pred.item()}, label: {class_labels[pred.item()]}")
             label = class_labels[pred.item()]
         else:
             label = str(pred.item())

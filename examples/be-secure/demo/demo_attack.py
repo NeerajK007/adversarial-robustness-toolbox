@@ -29,7 +29,7 @@ def get_art_classifier(model):
         loss=criterion,
         optimizer=None,  # Not needed for inference
         input_shape=(3, 224, 224),
-        nb_classes=2,
+        nb_classes=4,
         clip_values=(0, 1),
         device_type='gpu' if torch.cuda.is_available() else 'cpu'
     )

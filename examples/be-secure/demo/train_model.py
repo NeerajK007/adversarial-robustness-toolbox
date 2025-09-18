@@ -10,6 +10,10 @@ import logging
 import json
 import sys
 
+from art.attacks.evasion.fast_gradient import FastGradientMethod
+from art.attacks.evasion.projected_gradient_descent.projected_gradient_descent import ProjectedGradientDescent
+from art.estimators.classification.pytorch import PyTorchClassifier
+
 from .datasets.mvtec_loader import MVTecSyntheticDataset
 from .datasets.traffic_sign_loader import TrafficSignDataset
 from .models.mobilenet import load_mobilenet, save_model
@@ -94,10 +98,73 @@ def train_model(model, train_loader, val_loader, device, epochs=5, lr=1e-3):
 
 
 # -------------------------------
+# ART Classifier Wrapper
+# -------------------------------
+def get_art_classifier(model):
+    """
+    Wrap PyTorch model as ART classifier for evasion attacks.
+    """
+    criterion = nn.CrossEntropyLoss()
+    classifier = PyTorchClassifier(
+        model=model,
+        loss=criterion,
+        optimizer=None,  # Not needed for inference
+        input_shape=(3, 224, 224),
+        nb_classes=2,
+        clip_values=(0, 1),
+        device_type='gpu' if torch.cuda.is_available() else 'cpu'
+    )
+    return classifier
+
+
+def train_model_adversarial(model, train_loader, val_loader, device, epochs=5, lr=1e-3, attack=None):
+    if attack is None:
+        raise ValueError("You must provide an ART attack instance (e.g., FastGradientMethod, PGD).")
+
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=lr)
+    history = {"train_loss": [], "val_accuracy": []}
+
+    for epoch in range(epochs):
+        model.train()
+        running_loss = 0.0
+
+        for images, labels in train_loader:
+            images, labels = images.to(device), labels.to(device)
+
+            # Clean loss
+            outputs = model(images)
+            loss_clean = criterion(outputs, labels)
+
+            # Adversarial loss
+            adv_images_np = attack.generate(images.cpu().numpy())  # ART expects numpy
+            adv_images = torch.tensor(adv_images_np).to(device)
+            outputs_adv = model(adv_images)
+            loss_adv = criterion(outputs_adv, labels)
+
+            # Combine
+            loss = (loss_clean + loss_adv) / 2
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            running_loss += loss.item() * images.size(0)
+
+        metrics = evaluate_model(model, val_loader, device)
+        history["train_loss"].append(running_loss / len(train_loader.dataset))
+        history["val_accuracy"].append(metrics["accuracy"])
+        logger.info(f"[Adversarial Epoch {epoch+1}/{epochs}] Loss={loss:.4f}, Val Acc={metrics['accuracy']:.4f}")
+
+    return model, history
+
+
+
+# -------------------------------
 # Main
 # -------------------------------
 import os
 def main():
+    use_adversarial_training=True
     # -------------------------------
     # Project paths
     # -------------------------------
@@ -116,11 +183,16 @@ def main():
         num_classes = 4    # Update based on dataset (e.g., 2 for mvtec binary, 4 for traffic signs)
 
     cfg = Config()
-    
+    # create timestamp like 20250911_121530
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     # Dynamically set data and save paths
     #data_dir = os.path.join(project_root, "data", "mvtec_anomaly_detection")
-    data_dir = os.path.join(project_root, "data", "Indian_traffic_sign_classification_dataset_class4")
-    save_path = os.path.join(project_root, "demo", "weights", f"{cfg.model_name}_{cfg.dataset_name}.pth")
+    data_dir = os.path.join(project_root, "data", "1_Indian_traffic_sign_classification_dataset_class4")
+    if use_adversarial_training:
+        save_path = os.path.join(project_root, "demo", "weights", f"{timestamp}_{cfg.model_name}_{cfg.dataset_name}_AdvTrained.pth")
+    else:
+        save_path = os.path.join(project_root, "demo", "weights", f"{timestamp}_{cfg.model_name}_{cfg.dataset_name}.pth")
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
     logger.info(f"Dataset path: {data_dir}")
@@ -157,8 +229,24 @@ def main():
     # -------------------------------
     # Train
     # -------------------------------
-    model, history = train_model(model, train_loader, val_loader, device,
-                                 epochs=cfg.epochs, lr=cfg.lr)
+    
+
+    if use_adversarial_training:
+        attack = ProjectedGradientDescent(
+            estimator=get_art_classifier(model),
+            eps=0.03,
+            eps_step=0.01,
+            max_iter=15,
+            #targeted=targeted,
+            #num_random_init=num_random_init,
+            batch_size=16
+        )
+        model, history = train_model_adversarial(model, train_loader, val_loader, device,
+                                                epochs=cfg.epochs, lr=cfg.lr, attack=attack)
+    else:
+        model, history = train_model(model, train_loader, val_loader, device,
+                                    epochs=cfg.epochs, lr=cfg.lr)
+
 
     # -------------------------------
     # Save
