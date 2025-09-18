@@ -15,6 +15,9 @@ from typing import Optional
 from datetime import datetime
 from demo_attack import generate_adversarial  # your attack module
 
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
+
 # -------------------------------
 # Logging
 # -------------------------------
@@ -75,6 +78,13 @@ def load_demo_model(demo_type: str, device, variant="normal"):
 # -------------------------------
 app = FastAPI(title="Adversarial Demo API")
 
+# Resolve absolute path to your static folder
+STATIC_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "static"))
+print(">>> Serving static from:", STATIC_DIR)
+
+# Mount it
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
 origins = [
     "http://localhost:8000",
     "http://127.0.0.1:8000",
@@ -93,6 +103,22 @@ app.add_middleware(
 def read_root():
     path = os.path.join(os.path.dirname(__file__), "demo_ui.html")
     return FileResponse(path)
+
+@app.get("/samples/{demo_type}")
+def list_samples(demo_type: str):
+    print(os.path.join(os.path.dirname(__file__), "static", "Images", demo_type))
+    base = os.path.join(os.path.dirname(__file__), "static", "Images", demo_type)
+    if not os.path.exists(base):
+        return JSONResponse(content={"samples": []})
+    files = []
+    for root, dirs, filenames in os.walk(base):
+        rel_dir = os.path.relpath(root, base)
+        for f in filenames:
+            if f.lower().endswith(('.png','.jpg','.jpeg')):
+                rel_path = os.path.join(rel_dir, f) if rel_dir != "." else f
+                files.append(rel_path)
+    return JSONResponse(content={"samples": files})
+
 
 # -------------------------------
 # Predict endpoint

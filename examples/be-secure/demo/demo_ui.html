@@ -212,8 +212,16 @@ button { width: 100%; padding: 9px; border-radius: 8px; border: none; font-weigh
       <div class="step-badge">1</div>
       <h3>Original Image</h3>
       <div class="img-box" id="previewBox"><img id="preview" alt="original preview" /></div>
-      <label for="imageInput">Upload:</label>
-      <input type="file" id="imageInput" accept="image/*" />
+      <!-- Upload option -->
+      <!-- <label for="imageInput">Upload:</label>
+      <input type="file" id="imageInput" accept="image/*" /> -->
+
+      <!-- OR choose from server (auto-populated based on demoSelect) -->
+      <label for="serverSampleSelect">Select Test Image:</label>
+      <select id="serverSampleSelect">
+        <option value="" selected disabled>Select Test Image ...</option>
+      </select>
+
       <button id="predictCleanBtn" class="btn-primary btn-disabled" disabled>Predict (Clean)</button>
       <div class="msg" id="origMsg"></div>
       <div id="origResult" class="result">No prediction yet.</div>
@@ -303,7 +311,7 @@ button { width: 100%; padding: 9px; border-radius: 8px; border: none; font-weigh
 </div>
 
 <script>
-  const imageInput = document.getElementById('imageInput');
+  //const imageInput = document.getElementById('imageInput');
   const predictCleanBtn = document.getElementById('predictCleanBtn');
   const generateAdvBtn = document.getElementById('generateAdvBtn');
   const predictAdvBtn = document.getElementById('predictAdvBtn');
@@ -319,6 +327,8 @@ button { width: 100%; padding: 9px; border-radius: 8px; border: none; font-weigh
   const origResult = document.getElementById('origResult');
   const advResult = document.getElementById('advResult');
   const origMsg = document.getElementById('origMsg');
+  const serverSampleSelect = document.getElementById('serverSampleSelect');
+
 
   let originalFile=null, advFile=null;
 
@@ -330,30 +340,73 @@ button { width: 100%; padding: 9px; border-radius: 8px; border: none; font-weigh
     return new File([new Blob([ab], {type:'image/png'})], filename, {type:'image/png'});
   }
 
-  imageInput.addEventListener('change', e=>{
-    originalFile=e.target.files[0];
-    advFile=null;
-    advPreview.style.display='none';
-    advResult.textContent='No prediction yet.';
-    predictAdvBtn.disabled=true; predictAdvBtn.classList.add('btn-disabled');
+  // imageInput.addEventListener('change', e=>{
+  //   originalFile=e.target.files[0];
+  //   advFile=null;
+  //   advPreview.style.display='none';
+  //   advResult.textContent='No prediction yet.';
+  //   predictAdvBtn.disabled=true; predictAdvBtn.classList.add('btn-disabled');
 
-    if(originalFile){
-      const reader=new FileReader();
-      reader.onload=e=>{
-        preview.src=e.target.result;
-        preview.style.display='block';
-        previewBox.style.display='grid';
-        predictCleanBtn.disabled=false; predictCleanBtn.classList.remove('btn-disabled');
-        generateAdvBtn.disabled=false; generateAdvBtn.classList.remove('btn-disabled');
-        origMsg.textContent='Image loaded.';
+  //   if(originalFile){
+  //     const reader=new FileReader();
+  //     reader.onload=e=>{
+  //       preview.src=e.target.result;
+  //       preview.style.display='block';
+  //       previewBox.style.display='grid';
+  //       predictCleanBtn.disabled=false; predictCleanBtn.classList.remove('btn-disabled');
+  //       generateAdvBtn.disabled=false; generateAdvBtn.classList.remove('btn-disabled');
+  //       origMsg.textContent='Image loaded.';
+  //     };
+  //     reader.readAsDataURL(originalFile);
+  //   } else {
+  //     predictCleanBtn.disabled=true; predictCleanBtn.classList.add('btn-disabled');
+  //     generateAdvBtn.disabled=true; generateAdvBtn.classList.add('btn-disabled');
+  //     origMsg.textContent='';
+  //   }
+  // });
+
+
+  serverSampleSelect.addEventListener('change', async (e) => {
+    const samplePath = e.target.value;
+    if (!samplePath) return;
+
+    const demoType = demoSelect.value;
+    const url = `/static/Images/${demoType}/${samplePath}`;
+
+    try {
+      const resp = await fetch(url);
+      const blob = await resp.blob();
+
+      // Create a File object to reuse same pipeline as upload
+      originalFile = new File([blob], samplePath, { type: blob.type });
+
+      // Reset adversarial state
+      advFile = null;
+      advPreview.style.display = 'none';
+      advResult.textContent = 'No prediction yet.';
+      predictAdvBtn.disabled = true;
+      predictAdvBtn.classList.add('btn-disabled');
+
+      // Preview
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        preview.src = ev.target.result;
+        preview.style.display = 'block';
+        previewBox.style.display = 'grid';
+        predictCleanBtn.disabled = false;
+        predictCleanBtn.classList.remove('btn-disabled');
+        generateAdvBtn.disabled = false;
+        generateAdvBtn.classList.remove('btn-disabled');
+        origMsg.textContent = `Loaded sample: ${samplePath}`;
       };
       reader.readAsDataURL(originalFile);
-    } else {
-      predictCleanBtn.disabled=true; predictCleanBtn.classList.add('btn-disabled');
-      generateAdvBtn.disabled=true; generateAdvBtn.classList.add('btn-disabled');
-      origMsg.textContent='';
+
+    } catch (err) {
+      console.error("Failed to load sample:", err);
+      origMsg.textContent = 'Error loading sample image';
     }
   });
+
 
   attackSelect.addEventListener('change', function(){
     if(this.value==='fgsm'){ epsDiv.style.display='block'; pgdParams.style.display='none'; cwParams.style.display='none'; }
@@ -550,7 +603,11 @@ button { width: 100%; padding: 9px; border-radius: 8px; border: none; font-weigh
       }
 
 // Update when user changes selection
-demoSelect.addEventListener('change', updateCurrentDemo);
+demoSelect.addEventListener('change', () => {
+  updateCurrentDemo();
+  loadServerSamples(demoSelect.value);
+});
+
 
 // Initialize on page load
 updateCurrentDemo();
@@ -564,6 +621,36 @@ updateCurrentDemo();
       function hideOverlay() {
         document.getElementById('pageOverlay').style.display = 'none';
       }
+
+      async function loadServerSamples(demoType) {
+        serverSampleSelect.innerHTML = '<option value="" disabled selected>Loading...</option>';
+        try {
+          const resp = await fetch(`/samples/${demoType}`);
+          const data = await resp.json();
+
+          if (!data.samples || data.samples.length === 0) {
+            serverSampleSelect.innerHTML = '<option value="" disabled selected>No samples available</option>';
+            return;
+          }
+
+          serverSampleSelect.innerHTML = '<option value="" disabled selected>Select a sample</option>';
+          data.samples.forEach(sample => {
+            const opt = document.createElement('option');
+            opt.value = sample;
+            opt.textContent = sample;
+            serverSampleSelect.appendChild(opt);
+          });
+        } catch (err) {
+          console.error("Error loading samples:", err);
+          serverSampleSelect.innerHTML = '<option value="" disabled selected>Error loading</option>';
+        }
+      }
+
+      // Load samples for the initially selected demo on page load
+      document.addEventListener("DOMContentLoaded", () => {
+        loadServerSamples(demoSelect.value);
+      });
+
 
 </script>
 </body>
