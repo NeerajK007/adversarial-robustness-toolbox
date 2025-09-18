@@ -78,6 +78,7 @@ app = FastAPI(title="Adversarial Demo API")
 origins = [
     "http://localhost:8000",
     "http://127.0.0.1:8000",
+    "https://art.o31e.com",
 ]
 
 app.add_middleware(
@@ -90,7 +91,8 @@ app.add_middleware(
 
 @app.get("/")
 def read_root():
-    return {"message": "Adversarial Demo API is running."}
+    path = os.path.join(os.path.dirname(__file__), "demo_ui.html")
+    return FileResponse(path)
 
 # -------------------------------
 # Predict endpoint
