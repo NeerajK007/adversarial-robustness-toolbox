@@ -32,7 +32,7 @@ MODEL_REGISTRY = {
     "Indian-trafic-signal-misclassification": {
         "model_fn": models.mobilenet_v2,
         "num_classes": 4,
-        "weights_path": "weights/1_mobilenetv2_traffic_signs.pth"
+        "weights_path": "weights/20250918_091130_mobilenetv2_traffic_signs.pth"
     }
     # future demos can be added here
 }
