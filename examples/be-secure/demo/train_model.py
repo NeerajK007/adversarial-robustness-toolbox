@@ -164,7 +164,7 @@ def train_model_adversarial(model, train_loader, val_loader, device, epochs=5, l
 # -------------------------------
 import os
 def main():
-    use_adversarial_training=True
+    use_adversarial_training=False
     # -------------------------------
     # Project paths
     # -------------------------------
@@ -190,9 +190,9 @@ def main():
     #data_dir = os.path.join(project_root, "data", "mvtec_anomaly_detection")
     data_dir = os.path.join(project_root, "data", "1_Indian_traffic_sign_classification_dataset_class4")
     if use_adversarial_training:
-        save_path = os.path.join(project_root, "demo", "weights", f"{timestamp}_{cfg.model_name}_{cfg.dataset_name}_AdvTrained.pth")
+        save_path = os.path.join(project_root, "weights", f"{timestamp}_{cfg.model_name}_{cfg.dataset_name}_AdvTrained.pth")
     else:
-        save_path = os.path.join(project_root, "demo", "weights", f"{timestamp}_{cfg.model_name}_{cfg.dataset_name}.pth")
+        save_path = os.path.join(project_root, "weights", f"{timestamp}_{cfg.model_name}_{cfg.dataset_name}.pth")
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
     logger.info(f"Dataset path: {data_dir}")
