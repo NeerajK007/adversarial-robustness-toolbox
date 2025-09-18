@@ -113,4 +113,5 @@ demo/pics/*
 !notebooks/art_evaluations/*.ipynb
 /examples/be-secure/tmp
 /examples/be-secure/data
+!/examples/be-secure/demo/data/
 /examples/be-secure/mobilenetv2*
