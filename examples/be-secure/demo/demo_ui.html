@@ -53,8 +53,23 @@ body { font-family: Arial, sans-serif; background: #f4f6f9; color: #333; overflo
 
 .step h3 { margin: 0 0 4px 0; font-size: 16px; color: #2d3e50; }
 .arrow { flex: 0 0 12px; display: flex; align-items: center; justify-content: center; color: #8aa0b3; font-size: 24px; user-select: none; }
-.img-box { width: 224px; height: 224px; margin: 4px auto; background: #f8fafc; border: 1px solid #dbe3ea; border-radius: 8px; display: grid; place-items: center; overflow: hidden; }
-.img-box img { width: 224px; height: 224px; object-fit: cover; display: none; }
+.img-box {
+  margin: 4px auto;
+  background: #f8fafc;
+  border: 1px solid #dbe3ea;
+  border-radius: 8px;
+  display: inline-block;   /* shrink to fit image */
+  padding: 4px;            /* optional, gives a small border spacing */
+}
+
+.img-box img {
+  max-width: 100%;
+  height: auto;
+  width: auto;
+  object-fit: contain;     /* ensures no cropping */
+  display: none;
+}
+
 label { font-weight: 600; color: #34495e; font-size: 13px; }
 input[type="file"], input[type="number"], select { width: 75%; padding: 6px; border: 1px solid #bfc9d1; border-radius: 6px; font-size: 14px; background: #f8fafc; color: #2d3e50; }
 button { width: 100%; padding: 9px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; }

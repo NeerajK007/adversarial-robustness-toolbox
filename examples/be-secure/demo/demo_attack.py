@@ -219,7 +219,7 @@ def fgsm_attack(image: Image.Image, model, device, eps: float = 0.1):
 # -------------------------------
 # Future Attacks Placeholder
 # -------------------------------
-def generate_adversarial(image: Image.Image, model, device, attack_name="fgsm", attack_params=None):
+def generate_adversarial(image: Image.Image, model, device, attack_name="fgsm", attack_params=None, demo_type="Tile-defect-misclassification"):
    
     logging.info("in-generate_adversarial - ", datetime.now().isoformat())
     if attack_params is None:

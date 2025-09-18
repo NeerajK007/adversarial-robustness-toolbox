@@ -30,12 +30,12 @@ MODEL_REGISTRY = {
     "Tile-defect-misclassification": {
         "model_fn": models.mobilenet_v2,
         "num_classes": 2,
-        "weights_path": "weights/mobilenetv2_mvtec.pth"
+        "weights_path": "weights/20250918_154122_mobilenetv2_mvtec.pth"
     },
     "Indian-trafic-signal-misclassification": {
         "model_fn": models.mobilenet_v2,
         "num_classes": 4,
-        "weights_path": "weights/20250918_091130_mobilenetv2_traffic_signs.pth"
+        "weights_path": "weights/20250918_153217_mobilenetv2_traffic_signs.pth"
     }
     # future demos can be added here
 }
@@ -53,7 +53,7 @@ def load_demo_model(demo_type: str, device, variant="normal"):
     weights_path = model_registry["weights_path"]
     # switch only for adv-trained variant
     if variant == "adv_trained" and demo_type == "Indian-trafic-signal-misclassification":
-        weights_path = "weights/20250911_121629_mobilenetv2_traffic_signs_AdvTrained.pth"
+        weights_path = "weights/20250918_154508_mobilenetv2_traffic_signs_AdvTrained.pth"
 
     
     # Load base model
@@ -205,15 +205,33 @@ async def generate_adv_image(
         if binary_search_steps is not None: attack_params["binary_search_steps"] = int(binary_search_steps)
         if initial_const is not None: attack_params["initial_const"] = float(initial_const)
         
+        
+        orig_pil = Image.open(io.BytesIO(image_bytes))
+        orig_format = (orig_pil.format or "PNG").upper()   # remember original format (JPEG/PNG/...)
+        image = orig_pil.convert("RGB")
+        
         # Generate adversarial image
         result = generate_adversarial(
-            image, model, device, attack_name=attack, attack_params=attack_params
+            image, model, device, attack_name=attack, attack_params=attack_params, demo_type=demo_type
         )
         adv_image = result["adversarial_image"]
 
-        # Encode to base64
+     # ensure RGB and same size as original
+        adv_image = adv_image.convert("RGB")
+        if adv_image.size != image.size:
+            logging.info(f"Resizing adv image from {adv_image.size} -> {image.size}")
+            adv_image = adv_image.resize(image.size, resample=Image.LANCZOS)
+
+        # choose save format based on original (use PNG as fallback)
+        save_format = "PNG"
+        if orig_format in ("JPEG", "JPG"):
+            save_format = "JPEG"
+
         buf = io.BytesIO()
-        adv_image.save(buf, format="PNG")
+        if save_format == "JPEG":
+            adv_image.save(buf, format=save_format, quality=95)
+        else:
+            adv_image.save(buf, format=save_format)
         adv_base64 = base64.b64encode(buf.getvalue()).decode("utf-8")
         
         end_ts = datetime.now().isoformat()
