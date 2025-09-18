@@ -168,7 +168,7 @@ def main():
     # -------------------------------
     # Project paths
     # -------------------------------
-    project_root = os.path.dirname(os.path.dirname(__file__))
+    project_root = os.path.dirname(__file__)
     logger.info("*** Start-point ***")
 
     # -------------------------------
