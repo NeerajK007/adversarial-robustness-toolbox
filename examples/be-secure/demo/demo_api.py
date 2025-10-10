@@ -30,12 +30,12 @@ MODEL_REGISTRY = {
     "Tile-defect-misclassification": {
         "model_fn": models.mobilenet_v2,
         "num_classes": 2,
-        "weights_path": "weights/20250918_154122_mobilenetv2_mvtec.pth"
+        "weights_path": "weights/20250925_110902_mobilenetv2_mvtec.pth"
     },
     "Indian-trafic-signal-misclassification": {
         "model_fn": models.mobilenet_v2,
         "num_classes": 4,
-        "weights_path": "weights/20250918_153217_mobilenetv2_traffic_signs.pth"
+        "weights_path": "weights/20250919_133106_mobilenetv2_traffic_signs.pth"
     }
     # future demos can be added here
 }

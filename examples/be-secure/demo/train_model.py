@@ -165,6 +165,7 @@ def train_model_adversarial(model, train_loader, val_loader, device, epochs=5, l
 import os
 def main():
     use_adversarial_training=False
+    dataset_name = "mvtec"
     # -------------------------------
     # Project paths
     # -------------------------------
@@ -175,20 +176,24 @@ def main():
     # Configuration (update here for each run)
     # -------------------------------
     class Config:
-        dataset_name = "traffic_signs"          # Options: "mvtec", "traffic_signs", etc.
+        dataset_name = "mvtec"          # Options: "mvtec", "traffic_signs", etc.
         model_name = "mobilenetv2"      # Options: "mobilenetv2", "resnet18", etc.
-        epochs = 2
+        epochs = 5
         batch_size = 16
         lr = 1e-3
-        num_classes = 4    # Update based on dataset (e.g., 2 for mvtec binary, 4 for traffic signs)
+        num_classes = 2    # Update based on dataset (e.g., 2 for mvtec binary, 4 for traffic signs)
 
     cfg = Config()
     # create timestamp like 20250911_121530
     from datetime import datetime
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     # Dynamically set data and save paths
-    #data_dir = os.path.join(project_root, "data", "mvtec_anomaly_detection")
-    data_dir = os.path.join(project_root, "data", "1_Indian_traffic_sign_classification_dataset_class4")
+    data_dir
+    if cfg.dataset_name == "mvtec":
+        data_dir = os.path.join(project_root, "data", "mvtec_anomaly_detection")
+    else:
+        data_dir = os.path.join(project_root, "data", "1_Indian_traffic_sign_classification_dataset_class4")
+        
     if use_adversarial_training:
         save_path = os.path.join(project_root, "weights", f"{timestamp}_{cfg.model_name}_{cfg.dataset_name}_AdvTrained.pth")
     else:

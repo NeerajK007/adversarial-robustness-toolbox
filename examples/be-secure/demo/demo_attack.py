@@ -142,7 +142,7 @@ def pgd_attack(
     Returns original & adversarial predictions + adversarial image.
     """
     start_time = datetime.now()
-    logging.info(f"[PGD_ATTACK] Start: {start_time.isoformat()}")
+    logging.info(f"---------------------[PGD_ATTACK] Start: {start_time.isoformat()}")
     logging.info(f"targeted- {targeted}")
 
     classifier = get_art_classifier(model)
@@ -174,7 +174,7 @@ def pgd_attack(
     # adv_label, adv_conf = predict(pil_to_tensor(adv_img, device=device))
 
     end_time = datetime.now()
-    logging.info(f"[PGD_ATTACK] End: {end_time.isoformat()} (Duration: {end_time - start_time})")
+    logging.info(f"[PGD_ATTACK] End: {end_time.isoformat()} (Duration: {end_time - start_time}) --------------------")
 
     return {
         # "original": {"label": orig_label, "confidence": orig_conf},
@@ -221,7 +221,7 @@ def fgsm_attack(image: Image.Image, model, device, eps: float = 0.1):
 # -------------------------------
 def generate_adversarial(image: Image.Image, model, device, attack_name="fgsm", attack_params=None, demo_type="Tile-defect-misclassification"):
    
-    logging.info("in-generate_adversarial - ", datetime.now().isoformat())
+    logging.info(f"in-generate_adversarial - {datetime.now().isoformat()}")
     if attack_params is None:
         attack_params = {}
 
