@@ -1,4 +1,11 @@
 # models/mobilenet.py
+"""
+mobilenet.py
+Defines MobileNetV2 model architecture utilities used for both
+training and evaluation. This file is reused by model_loader.py
+to instantiate architecture during inference.
+"""
+
 
 import torch
 import torch.nn as nn

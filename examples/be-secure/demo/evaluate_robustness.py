@@ -21,15 +21,18 @@ from torch.utils.data import DataLoader, Subset
 from datasets.mvtec_loader import MVTecSyntheticDataset
 from datasets.traffic_sign_loader import TrafficSignDataset
 
-from demo_api import load_demo_model  # reuse existing loader
+from model_loader import load_demo_model
+from model_registry import get_model_cfg
+
 
 import logging
 
 logging.basicConfig(
     level=logging.INFO,
-    format=("====", "[%(asctime)s] [%(levelname)s] [%(filename)s:%(lineno)d] ➜ %(message)s", "===="),
+    format="==== [%(asctime)s] [%(levelname)s] [%(filename)s:%(lineno)d] ➜ %(message)s ====",
     datefmt="%Y-%m-%d %H:%M:%S"
 )
+
 logger = logging.getLogger("ART-Eval")
 
 # -------------------------------
@@ -38,36 +41,17 @@ logger = logging.getLogger("ART-Eval")
 def get_config():
     config = {
         "run_id": datetime.now().strftime("%Y%m%d_%H%M%S"),
-        "models": [
-            {
-                "name": "MobileNetV2",
-                "pretrained_on":"ImageNet",
-                "test_data_set":"mvtec_anomaly_detection",
-                "demo_type": "Tile-defect-misclassification",
-                "variant": "normal",
-                "weights": "weights/20250925_110902_mobilenetv2_mvtec.pth",
-                "num_classes": 2
-            },
-            {
-                "name": "MobileNetV2",
-                "pretrained_on":"ImageNet",
-                "test_data_set":"Indian_traffic_sign_classification_dataset",
-                "demo_type": "Indian-trafic-signal-misclassification",
-                "variant": "normal",
-                "weights": "weights/20250919_133106_mobilenetv2_traffic_signs.pth",
-                "num_classes": 4
-            }
-        ],
+        "demo_type":"Indian-trafic-signal-misclassification",
         "attacks": [
-            { "name": "fgsm", "parameters": { "eps": 0.1 } },
-            { "name": "pgd", "parameters": { "eps": 0.01, "eps_step": 0.01, "max_iter": 10 } },
-            #{ "name": "pgd", "parameters": { "eps": 0.03, "eps_step": 0.01, "max_iter": 1 } },
-            #{ "name": "pgd", "parameters": { "eps": 0.03, "eps_step": 0.01, "max_iter": 15 } },
+            #{ "name": "fgsm", "parameters": { "eps": 0.1 } },
+            #{ "name": "pgd", "parameters": { "eps": 0.01, "eps_step": 0.01, "max_iter": 10 } },
+            #{ "name": "pgd", "parameters": { "eps": 0.03, "eps_step": 0.01, "max_iter": 10 } },
+            { "name": "pgd", "parameters": { "eps": 0.1, "eps_step": 0.01, "max_iter": 10 } },
             #{ "name": "cw", "parameters": { "confidence": 0.5, "max_iter": 1 } }
         ],
         "run_options": {
             "batch_size": 8,
-            "limit": None,
+            "limit": 5,
             "detailed_logs": False
         },
         "output": {
@@ -82,26 +66,11 @@ def get_config():
 # -------------------------------
 def load_model(model_cfg: dict, device):
     """
-    Load a demo model given its config.
-    Wraps existing `load_demo_model` logic.
-
-    Args:
-        model_cfg (dict): { "demo_type": str, "variant": str, ... }
-        device: torch.device
-
-    Returns:
-        model: torch.nn.Module (in eval mode)
+    Unified model loader (delegates to model_loader.py)
     """
-    
-
     demo_type = model_cfg.get("demo_type")
     variant = model_cfg.get("variant", "normal")
-
-    if not demo_type:
-        raise ValueError("model_cfg must include 'demo_type'")
-
-    model = load_demo_model(demo_type, device, variant=variant)
-    return model
+    return load_demo_model(demo_type, device, variant)
 
 
 def load_dataset(demo_type, batch_size, limit=None):
@@ -375,17 +344,19 @@ def save_report(report, config):
             "report_type": "adversarial_robustness",
             "generated_at": meta.get("generated_at", datetime.now().isoformat()),
             "dataset": {
-                "name": meta.get("model", {}).get("test_data_set"),
+                "name": meta.get("model", {}).get("dataset_name"),
                 #"name": meta.get("dataset_meta", {}).get("name"),
                 "size_test": meta.get("dataset_meta", {}).get("size_test"),
                 "num_classes": meta.get("dataset_meta", {}).get("num_classes"),
+                "source":"datasets url"
             },
             "model": {
-                "name": meta.get("model", {}).get("name"),
+                "name": meta.get("model", {}).get("model_fn"),
                 "pretrained_on":"ImageNet",
-                "fine_tuned_on":meta.get("model", {}).get("test_data_set"),
+                "fine_tuned_on":meta.get("model", {}).get("dataset_name"),
                 "variant": meta.get("model", {}).get("variant"),
-                "weights_file": meta.get("model", {}).get("weights"),
+                "weights_file": meta.get("model", {}).get("weights_path"),
+                "source":"https://download.pytorch.org/models/mobilenet_v2-7ebf99e0.pth"
             },
             "environment": {
                 "framework": "PyTorch 2.1",
@@ -401,7 +372,7 @@ def save_report(report, config):
                 "attacks": [
                     {
                         "name": "backdoor_attack",
-                        "parameters": {"dummy": 0.1}
+                        "parameters": "N/A"
                     }
                 ]
             },
@@ -434,7 +405,19 @@ def save_report(report, config):
 
     # --- Print the report prettily ---
     print("\n\n========== FINAL FORMATTED REPORT ==========")
-    print(json.dumps(final_report, indent=2))
+   # remove unserializable entries
+    def clean_for_json(obj):
+        if isinstance(obj, dict):
+            return {k: clean_for_json(v) for k, v in obj.items() if not callable(v)}
+        elif isinstance(obj, (list, tuple)):
+            return [clean_for_json(v) for v in obj]
+        elif callable(obj):
+            return str(obj.__name__)  # e.g., "mobilenet_v2"
+        else:
+            return obj
+
+    clean_report = clean_for_json(final_report)
+    print(json.dumps(clean_report, indent=2))
     print("============================================\n")
 
 
@@ -460,8 +443,9 @@ def main():
     logger.info(f"Reports will be saved under: {output_base}")
 
     # Pick the first (or only) model from config
-    model_cfg = config["models"][1]
-    model_name = model_cfg.get("name", "unnamed_model")
+   # model_cfg = config["models"][1]
+    model_cfg = get_model_cfg(config.get("demo_type"))
+    model_name = model_cfg.get("model_fn", "unnamed_model")
     demo_type = model_cfg.get("demo_type")
     variant = model_cfg.get("variant", "normal")
     logger.info(f"Processing model: {model_name} (demo_type={demo_type}, variant={variant})")
