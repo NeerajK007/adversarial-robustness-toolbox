@@ -43,15 +43,15 @@ def get_config():
         "run_id": datetime.now().strftime("%Y%m%d_%H%M%S"),
         "demo_type":"Indian-trafic-signal-misclassification",
         "attacks": [
-            #{ "name": "fgsm", "parameters": { "eps": 0.1 } },
-            #{ "name": "pgd", "parameters": { "eps": 0.01, "eps_step": 0.01, "max_iter": 10 } },
-            #{ "name": "pgd", "parameters": { "eps": 0.03, "eps_step": 0.01, "max_iter": 10 } },
-            { "name": "pgd", "parameters": { "eps": 0.1, "eps_step": 0.01, "max_iter": 10 } },
+            { "name": "fgsm", "parameters": { "eps": 0.1 } },
+            { "name": "pgd", "parameters": { "eps": 0.01, "eps_step": 0.01, "max_iter": 5 } },
+            { "name": "pgd", "parameters": { "eps": 0.03, "eps_step": 0.01, "max_iter": 5 } },
+            #{ "name": "pgd", "parameters": { "eps": 0.09, "eps_step": 0.01, "max_iter": 5 } },
             #{ "name": "cw", "parameters": { "confidence": 0.5, "max_iter": 1 } }
         ],
         "run_options": {
-            "batch_size": 8,
-            "limit": 5,
+            "batch_size": 4,
+            "limit": 50,
             "detailed_logs": False
         },
         "output": {
@@ -323,6 +323,80 @@ def aggregate_metrics(clean_results, adv_results, dataset_meta=None, model_cfg=N
     return summary
 
 
+def add_additional_metadata(final_report):
+    """
+    Augments final_report with additional metadata sections:
+    'header', 'overview', 'security', and 'performance'.
+
+    Missing or unavailable values are set to 'N/A'.
+    """
+    try:
+        meta = final_report.get("REPORT_META", {})
+        global_results = final_report.get("GLOBAL_RESULTS", {})
+        evasion_data = global_results.get("Evasion", {}).get("attacks", [])
+        dataset = meta.get("dataset", {})
+        model = meta.get("model", {})
+
+        # --- Compute derived values ---
+        adversarial_efficacies = [a.get("adv_accuracy", 0) * 100 for a in evasion_data ]
+        max_efficacy = 100 - round(min(adversarial_efficacies), 2) if adversarial_efficacies else 0.0
+
+        # Alert level based on efficacy thresholds
+        if max_efficacy >= 50:
+            alert_level = "Critical"
+        elif max_efficacy >= 30:
+            alert_level = "High"
+        elif max_efficacy >= 10:
+            alert_level = "Moderate"
+        else:
+            alert_level = "Low"
+
+        # --- Build additional JSON sections ---
+        additional = {
+            "header": {
+                "File Name                           ": "VulnerabilityReport.json",
+                "Date of creation(dd-mm-yyyy)        ": meta.get("generated_at","N/A"),
+                "Job Id                              ": meta.get("report_id", "N/A"),
+                "Author Name/Dept                    ": "Be-Secure",
+                "Organization                        ": "Be-Secure",
+                "Description                         ": "Evasion Vulnerability report",
+                "Copyright                           ": ""
+            },
+            "overview": {
+                "ExecutiveSummary": "Executive Summary",
+                "Adversarial Efficacy (max)": max_efficacy,
+                "Alert": alert_level,
+                "Defense recommended": "Yes" if max_efficacy > 10 else "No",
+                "Summary": ""
+            },
+            "security": {
+                "2": "Security",
+                "2.1": "Attack Type & Parameter's Strength Vs Efficacy",
+                "Attack Efficacy": {}
+            },
+            "performance": {
+                "2": "Performance",
+                "2.1": "Inference Time of models",
+                "Original Model Inference Time in ms": "N/A",
+                "2.2": "Accuracy and F1 score of Models (Model)",
+                "Original Model Accuracy": round(global_results.get("clean_accuracy", 0) * 100, 2) if global_results else "N/A",
+                "Original Model F1 score": global_results.get("clean_accuracy", 0),
+                "Number of test samples": dataset.get("size_test", "N/A"),
+                "2.3": "Adversarial Accuracy on Extracted Model",
+                "Adversarial Accuracy": {}
+            }
+        }
+
+        # --- Merge into final_report ---
+        final_report.update(additional)
+
+    except Exception as e:
+        logger.error(f"Failed to add additional metadata: {e}", exc_info=True)
+
+    return final_report
+
+
+
 def save_report(report, config):
     """
     Transform internal ART evaluation results into the standardized report format.
@@ -368,14 +442,6 @@ def save_report(report, config):
             "Evasion": {
                 "attacks": attacks
             },
-            "Data Poisoning": {
-                "attacks": [
-                    {
-                        "name": "backdoor_attack",
-                        "parameters": "N/A"
-                    }
-                ]
-            },
             "metrics_collected": [
                 "clean_accuracy",
                 "adv_accuracy",
@@ -398,8 +464,7 @@ def save_report(report, config):
                     }
                     for s in summaries
                 ]
-            },
-            "Data Poisoning": {}
+            }
         }
     }
 
@@ -415,8 +480,9 @@ def save_report(report, config):
             return str(obj.__name__)  # e.g., "mobilenet_v2"
         else:
             return obj
-
-    clean_report = clean_for_json(final_report)
+        
+    final_report_custom=add_additional_metadata(final_report)
+    clean_report = clean_for_json(final_report_custom)
     print(json.dumps(clean_report, indent=2))
     print("============================================\n")
 
