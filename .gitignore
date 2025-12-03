@@ -115,3 +115,4 @@ demo/pics/*
 /examples/be-secure/data
 !/examples/be-secure/demo/data/   # do NOT ignore demo/data
 /examples/be-secure/mobilenetv2*
+examples/be-secure/demo-banking/data/creditcard.csv
