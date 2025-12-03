@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>ML Adversarial Attack</title>
+<style>
+:root { --card-w: 280px; --gap: 14px; }
+html, body { height: 100%; margin: 0; }
+body { font-family: Arial, sans-serif; background: #f4f6f9; color: #333; overflow-y: auto; }
+
+.app { min-height: 100vh; display: flex; flex-direction: column; }
+.header { flex: 0 0 auto; padding: 10px 16px; background: #fff; border-bottom: 1px solid #e0e6ed; color: #003366; font-weight: 700; }
+.flow {
+  flex: 1 1 auto;
+  display: flex;
+  gap: var(--gap);
+  padding: 12px 16px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  align-items: flex-start;
+  margin-top: 20px; /* <-- add this */
+}
+
+.step {
+  position: relative; /* enables positioning the badge inside */
+  flex: 0 0 var(--card-w);
+  background: #fff;
+  border: 1px solid #e0e6ed;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(44,62,80,0.10);
+  padding: 12px;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.step-badge {
+  position: absolute;
+  top: -12px;           /* above card */
+  left: 50%;            /* centered */
+  transform: translateX(-50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #4A90E2;  /* blue circle */
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.step h3 { margin: 0 0 4px 0; font-size: 16px; color: #2d3e50; }
+.arrow { flex: 0 0 12px; display: flex; align-items: center; justify-content: center; color: #8aa0b3; font-size: 24px; user-select: none; }
+.img-box {
+  margin: 4px auto;
+  background: #f8fafc;
+  border: 1px solid #dbe3ea;
+  border-radius: 8px;
+  display: inline-block;   /* shrink to fit image */
+  padding: 4px;            /* optional, gives a small border spacing */
+}
+
+.img-box img {
+  max-width: 100%;
+  height: auto;
+  width: auto;
+  object-fit: contain;     /* ensures no cropping */
+  display: none;
+}
+
+label { font-weight: 600; color: #34495e; font-size: 13px; }
+input[type="file"], input[type="number"], select { width: 75%; padding: 6px; border: 1px solid #bfc9d1; border-radius: 6px; font-size: 14px; background: #f8fafc; color: #2d3e50; }
+button { width: 100%; padding: 9px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; }
+.btn-primary {
+  background: #0056b3; /* deeper professional blue */
+  color: #fff;
+}
+.btn-warn { background: #e74c3c; color: #fff; }
+.btn-disabled { opacity: 0.6; cursor: not-allowed; }
+.msg { min-height: 18px; font-size: 13px; color: #666; }
+.result { min-height: 56px; border: 1px dashed #dbe3ea; background: #f8fafc; border-radius: 6px; padding: 6px; font-size: 13px; line-height: 1.3; }
+.params { display: grid; gap: 6px; }
+.round-btn { width: 50px; height: 50px; border-radius: 50%; padding: 0; font-size: 24px; display: flex; align-items: center; justify-content: center; }
+.round-btn:hover { transform: scale(1.1); background: #c0392b; }
+
+.footer { flex: 0 0 auto; padding: 5px 8px; background: #fff; border-top: 1px solid #e0e6ed; color: #2d3e50; max-height: 35vh; overflow-y: auto; }
+#attackInfoBox { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 6px; margin-top: 1px; }
+.attack-info { background: #f8fafc; border: 1px solid #dbe3ea; border-radius: 4px; padding: 4px 6px; font-size: 11px; line-height: 1.4; }
+
+#previewBox,
+#advBox {
+  display: none;   /* hide until image is loaded */
+}
+#attackInfoLive {
+  font-size: 12px;
+  line-height: 1.4;
+  background: #f8fafc;
+  border: 1px solid #dbe3ea;
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.subheader {
+  font-size: 12px;
+  font-weight: 400;
+  color: #555;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+.subheader p {
+  margin: 2px 0; /* small spacing between lines */
+}
+
+.params input, .params select {
+  display: block;
+  width: 75%;
+}
+
+.loader {
+  border: 3px solid #f3f3f3; /* light gray */
+  border-top: 3px solid #4A90E2; /* blue */
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  animation: spin 1s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+
+/* Make sure rotation keyframes exist */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+#pageOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255,255,255,0.7); /* semi-transparent white */
+  z-index: 9999;
+  display: none; /* hidden by default */
+  align-items: center;
+  justify-content: center;
+}
+
+.spinner {
+  border: 6px solid #f3f3f3; /* light gray */
+  border-top: 6px solid #4A90E2; /* blue */
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
+  animation: spin 1s linear infinite;
+}
+
+
+
+</style>
+</head>
+<body>
+<div id="pageOverlay">
+  <div class="spinner"></div>
+</div>
+  
+<div class="app">
+  <div class="header" style="display:flex; justify-content:space-between; align-items:flex-start;">
+    <!-- Demo selector -->
+    <div style="margin-bottom:8px;">
+      <label for="demoSelect" style="font-weight:600; margin-right:6px;">Select Demo:</label>
+      <select id="demoSelect">
+        <option value="Tile-defect-misclassification">Tile Defect Misclassification</option>
+        <option value="Indian-trafic-signal-misclassification">Indian Traffic Signal Misclassification</option>
+        <!-- add other demo types -->
+      </select>
+    </div>
+    <!-- Left: Main Info -->
+    <div class="subheader" id="demoInfo">
+      <!-- Dynamic content will be injected here -->
+    </div>
+  
+    <!-- Right: Attack Info Table -->
+    <div style="margin-left:20px;">
+      <table style="font-size:11px; border-collapse: collapse; border:1px solid #dbe3ea;">
+        <thead>
+          <tr style="background:#e0e6ed;">
+            <th style="border:1px solid #dbe3ea; padding:4px;">Attack Type</th>
+            <th style="border:1px solid #dbe3ea; padding:4px;">Need Training Datasets?</th>
+            <th style="border:1px solid #dbe3ea; padding:4px;">Need Test Datasets?</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="border:1px solid #dbe3ea; padding:4px;">Evasion</td>
+            <td style="border:1px solid #dbe3ea; padding:4px;">No</td>
+            <td style="border:1px solid #dbe3ea; padding:4px;">Yes</td>
+          </tr>
+          <tr>
+            <td style="border:1px solid #dbe3ea; padding:4px;">Inference</td>
+            <td style="border:1px solid #dbe3ea; padding:4px;">Yes</td>
+            <td style="border:1px solid #dbe3ea; padding:4px;">Yes</td>
+          </tr>
+          <tr>
+            <td style="border:1px solid #dbe3ea; padding:4px;">Poisoning</td>
+            <td style="border:1px solid #dbe3ea; padding:4px;">Yes</td>
+            <td style="border:1px solid #dbe3ea; padding:4px;">No*</td>
+          </tr>
+          <tr>
+            <td style="border:1px solid #dbe3ea; padding:4px;">Extraction</td>
+            <td style="border:1px solid #dbe3ea; padding:4px;">No</td>
+            <td style="border:1px solid #dbe3ea; padding:4px;">Yes</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  
+  
+  <div class="flow" id="flow">
+
+    <!-- 1. Original + Clean Prediction -->
+    <div class="step">
+      <div class="step-badge">1</div>
+      <h3>Original Image</h3>
+      <div class="img-box" id="previewBox"><img id="preview" alt="original preview" /></div>
+      <!-- Upload option -->
+      <!-- <label for="imageInput">Upload:</label>
+      <input type="file" id="imageInput" accept="image/*" /> -->
+
+      <!-- OR choose from server (auto-populated based on demoSelect) -->
+      <label for="serverSampleSelect">Select Test Image:</label>
+      <select id="serverSampleSelect">
+        <option value="" selected disabled>Select Test Image ...</option>
+      </select>
+
+      <button id="predictCleanBtn" class="btn-primary btn-disabled" disabled>Predict (Clean)</button>
+      <div class="msg" id="origMsg"></div>
+      <div id="origResult" class="result">No prediction yet.</div>
+    </div>
+
+    <div class="arrow">→</div>
+
+    <!-- 2. Attack Selection + Params -->
+    <div class="step">
+      <div class="step-badge">2</div>
+      <h3>Attack Config</h3>
+      <label for="attackSelect">Method:</label>
+      <select id="attackSelect">
+        <option value="" selected disabled>Select Attack</option>
+        <option value="fgsm">FGSM</option>
+        <option value="pgd">PGD</option>
+        <option value="cw">C&amp;W</option>
+      </select>
+      <div id="epsDiv" class="params" style="display:none;">
+        <label for="epsInput">Epsilon</label>
+        <input type="number" id="epsInput" value="0.1" step="0.01" min="0" max="1" />
+      </div>
+      <div id="pgdParams" class="params" style="display:none;">
+        <label for="epsStepInput">PGD Step Size</label>
+        <input type="number" id="epsStepInput" value="0.01" step="0.01" min="0" max="1" />
+        <label for="pgdMaxIter">PGD Max Iter</label>
+        <input type="number" id="pgdMaxIter" value="10" min="1" max="100" />
+        <label for="pgdTargeted">Targeted</label>
+        <select id="pgdTargeted"><option value="false" selected>No</option><option value="true">Yes</option></select>
+        <label for="pgdNumRandomInit">Num Random Init</label>
+        <input type="number" id="pgdNumRandomInit" value="0" min="0" max="10" />
+      </div>
+      <div id="cwParams" class="params" style="display:none;">
+        <label for="cwConfidence">C&amp;W Confidence</label>
+        <input type="number" id="cwConfidence" value="0.0" step="0.01" min="0" max="10" />
+        <label for="cwLearningRate">Learning Rate</label>
+        <input type="number" id="cwLearningRate" value="0.01" step="0.001" min="0" max="1" />
+        <label for="cwBinarySearchSteps">Binary Search Steps</label>
+        <input type="number" id="cwBinarySearchSteps" value="10" min="1" max="100" />
+        <label for="cwMaxIter">Max Iter</label>
+        <input type="number" id="cwMaxIter" value="10" min="1" max="200" />
+        <label for="cwInitialConst">Initial Const</label>
+        <input type="number" id="cwInitialConst" value="0.01" step="0.001" min="0" max="1" />
+        <label for="cwTargeted">Targeted</label>
+        <select id="cwTargeted"><option value="false" selected>No</option><option value="true">Yes</option></select>
+      </div>
+
+      <div id="attackInfoLive" style="margin-top: 12px;"></div>
+
+    </div>
+
+    <div class="arrow">→</div>
+
+    <!-- 3. Generate Adversarial -->
+    <div class="step" style="flex:0 0 auto; display:flex; align-items:center; justify-content:center; padding:12px;">
+      <div class="step-badge">3</div>
+      <h3>Generate Attack Image</h3>
+      <button id="generateAdvBtn" class="btn-warn round-btn" disabled>⚡</button>
+    </div>
+
+    <div class="arrow">→</div>
+
+    <!-- 4. Adv Prediction -->
+    <div class="step">
+      <div class="step-badge">4</div>
+      <h3>Attack Image</h3>
+      <div class="img-box" id="advBox"><img id="advPreview" alt="adversarial preview" /></div>
+      <label for="variantSelect">Model:</label>
+        <select id="variantSelect">
+          <option value="normal" selected>Normal</option>
+          <option value="adv_trained">Adv-Trained</option>
+        </select>
+      <button id="predictAdvBtn" class="btn-primary btn-disabled" disabled>Predict (Adversarial)</button>
+      <div id="advResult" class="result">No prediction yet.</div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <p style="margin:0; font-size:12px; color:#555;">
+      Demo: Tiles Defect Classifier using MobileNetV2.
+    </p>
+  </div>
+  
+
+</div>
+
+<script>
+  //const imageInput = document.getElementById('imageInput');
+  const predictCleanBtn = document.getElementById('predictCleanBtn');
+  const generateAdvBtn = document.getElementById('generateAdvBtn');
+  const predictAdvBtn = document.getElementById('predictAdvBtn');
+  const attackSelect = document.getElementById('attackSelect');
+  const epsDiv = document.getElementById('epsDiv');
+  const epsInput = document.getElementById('epsInput');
+  const pgdParams = document.getElementById('pgdParams');
+  const cwParams = document.getElementById('cwParams');
+  const preview = document.getElementById('preview');
+  const advPreview = document.getElementById('advPreview');
+  const previewBox = document.getElementById('previewBox');
+  const advBox = document.getElementById('advBox');
+  const origResult = document.getElementById('origResult');
+  const advResult = document.getElementById('advResult');
+  const origMsg = document.getElementById('origMsg');
+  const serverSampleSelect = document.getElementById('serverSampleSelect');
+
+
+  let originalFile=null, advFile=null;
+
+  function base64ToFile(base64Str, filename='adv.png'){
+    const byteString = atob(base64Str);
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for(let i=0;i<byteString.length;i++) ia[i]=byteString.charCodeAt(i);
+    return new File([new Blob([ab], {type:'image/png'})], filename, {type:'image/png'});
+  }
+
+  // imageInput.addEventListener('change', e=>{
+  //   originalFile=e.target.files[0];
+  //   advFile=null;
+  //   advPreview.style.display='none';
+  //   advResult.textContent='No prediction yet.';
+  //   predictAdvBtn.disabled=true; predictAdvBtn.classList.add('btn-disabled');
+
+  //   if(originalFile){
+  //     const reader=new FileReader();
+  //     reader.onload=e=>{
+  //       preview.src=e.target.result;
+  //       preview.style.display='block';
+  //       previewBox.style.display='grid';
+  //       predictCleanBtn.disabled=false; predictCleanBtn.classList.remove('btn-disabled');
+  //       generateAdvBtn.disabled=false; generateAdvBtn.classList.remove('btn-disabled');
+  //       origMsg.textContent='Image loaded.';
+  //     };
+  //     reader.readAsDataURL(originalFile);
+  //   } else {
+  //     predictCleanBtn.disabled=true; predictCleanBtn.classList.add('btn-disabled');
+  //     generateAdvBtn.disabled=true; generateAdvBtn.classList.add('btn-disabled');
+  //     origMsg.textContent='';
+  //   }
+  // });
+
+
+  serverSampleSelect.addEventListener('change', async (e) => {
+    const samplePath = e.target.value;
+    if (!samplePath) return;
+
+    const demoType = demoSelect.value;
+    const url = `/static/Images/${demoType}/${samplePath}`;
+
+    try {
+      const resp = await fetch(url);
+      const blob = await resp.blob();
+
+      // Create a File object to reuse same pipeline as upload
+      originalFile = new File([blob], samplePath, { type: blob.type });
+
+      // Reset adversarial state
+      advFile = null;
+      advPreview.style.display = 'none';
+      advResult.textContent = 'No prediction yet.';
+      predictAdvBtn.disabled = true;
+      predictAdvBtn.classList.add('btn-disabled');
+
+      // Preview
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        preview.src = ev.target.result;
+        preview.style.display = 'block';
+        previewBox.style.display = 'grid';
+        predictCleanBtn.disabled = false;
+        predictCleanBtn.classList.remove('btn-disabled');
+        generateAdvBtn.disabled = false;
+        generateAdvBtn.classList.remove('btn-disabled');
+        origMsg.textContent = `Loaded sample: ${samplePath}`;
+      };
+      reader.readAsDataURL(originalFile);
+
+    } catch (err) {
+      console.error("Failed to load sample:", err);
+      origMsg.textContent = 'Error loading sample image';
+    }
+  });
+
+
+  attackSelect.addEventListener('change', function(){
+    if(this.value==='fgsm'){ epsDiv.style.display='block'; pgdParams.style.display='none'; cwParams.style.display='none'; }
+    else if(this.value==='pgd'){ epsDiv.style.display='block'; pgdParams.style.display='grid'; cwParams.style.display='none'; }
+    else if(this.value==='cw'){ epsDiv.style.display='none'; pgdParams.style.display='none'; cwParams.style.display='grid'; }
+  });
+
+  predictCleanBtn.addEventListener('click', async ()=>{
+    if(!originalFile) return;
+
+    showOverlay();   // <-- show overlay
+    origResult.innerHTML = 'Processing <span class="loader"></span>';
+
+    const fd = new FormData();
+    fd.append('file', originalFile);
+    fd.append('demo_type', demoSelect.value);
+
+    try {
+      const resp = await fetch('/predict/', {method:'POST', body:fd});
+      const data = await resp.json();
+
+      if(data.error){
+        origResult.textContent='';
+        alert('API Error: '+data.error);
+        hideOverlay();
+        return;
+      }
+
+      origResult.innerHTML = `Original prediction: <b>${data.label}</b><br>Confidence: ${(data.confidence*100).toFixed(1)} %`;
+    } catch(err){
+      origResult.textContent='';
+      alert('Clean prediction failed: '+err);
+    } finally {
+      hideOverlay();   // <-- hide overlay
+    }
+  });
+
+  generateAdvBtn.addEventListener('click', async () => {
+    if (!originalFile) return;
+    if (!attackSelect.value) { alert('Please select an attack method first.'); return; }
+
+    showOverlay();   // show overlay
+    advResult.textContent = 'Generating adversarial...';
+    advPreview.style.display = 'none';
+    predictAdvBtn.disabled = true; 
+    predictAdvBtn.classList.add('btn-disabled');
+
+    const fd = new FormData();
+    fd.append('file', originalFile);
+    fd.append('attack', attackSelect.value);
+    fd.append('demo_type', demoSelect.value); 
+
+    if (attackSelect.value === 'fgsm') fd.append('eps', epsInput.value);
+    else if (attackSelect.value === 'pgd') {
+      fd.append('eps', epsInput.value);
+      fd.append('eps_step', document.getElementById('epsStepInput').value);
+      fd.append('max_iter', document.getElementById('pgdMaxIter').value);
+      fd.append('targeted', document.getElementById('pgdTargeted').value);
+      fd.append('num_random_init', document.getElementById('pgdNumRandomInit').value);
+    } else if (attackSelect.value === 'cw') {
+      fd.append('confidence', document.getElementById('cwConfidence').value);
+      fd.append('learning_rate', document.getElementById('cwLearningRate').value);
+      fd.append('binary_search_steps', document.getElementById('cwBinarySearchSteps').value);
+      fd.append('max_iter', document.getElementById('cwMaxIter').value);
+      fd.append('initial_const', document.getElementById('cwInitialConst').value);
+      fd.append('targeted', document.getElementById('cwTargeted').value);
+    }
+
+    try {
+      const resp = await fetch('/attack', { method: 'POST', body: fd });
+      const data = await resp.json();
+
+      if (data.error) {
+        advResult.textContent = 'No prediction yet.';
+        alert('Attack Error: ' + data.error);
+        return;
+      }
+
+      if (data.adv_image_base64) {
+        advPreview.src = 'data:image/png;base64,' + data.adv_image_base64;
+        advPreview.style.display = 'block';
+        advBox.style.display = 'grid';
+        advFile = base64ToFile(data.adv_image_base64);
+        predictAdvBtn.disabled = false;
+        predictAdvBtn.classList.remove('btn-disabled');
+        advResult.textContent = 'Adversarial image ready. Predict it →';
+      }
+    } catch (err) {
+      advResult.textContent = 'No prediction yet.';
+      alert('Attack failed: ' + err);
+    } finally {
+      hideOverlay();  // hide overlay in all cases
+    }
+  });
+
+
+  predictAdvBtn.addEventListener('click', async () => {
+    if (!advFile) return;
+
+    showOverlay();   // show overlay
+    advResult.innerHTML = 'Processing <span class="loader"></span>';
+
+    const fd = new FormData();
+    fd.append('file', advFile);
+    fd.append('demo_type', demoSelect.value);
+    fd.append("variant", document.getElementById("variantSelect").value);
+
+    try {
+      const resp = await fetch('/predict/', { method: 'POST', body: fd });
+      const data = await resp.json();
+
+      if (data.error) {
+        advResult.textContent = '';
+        alert('API Error: ' + data.error);
+        return;
+      }
+
+      advResult.innerHTML = `Attack prediction: <b>${data.label}</b><br>Confidence: ${(data.confidence*100).toFixed(1)} %`;
+    } catch (err) {
+      advResult.textContent = '';
+      alert('Adversarial prediction failed: ' + err);
+    } finally {
+      hideOverlay();
+    }
+  });
+
+
+      const attackInfoLive = document.getElementById('attackInfoLive');
+
+      const attackInfoText = {
+        fgsm: `<b>FGSM: Fast Gradient Sign Method</b><br> Fast gradient one-step attack.<br><br>By adding invisible "noise" to an image, the FGSM attack forces an AI to misclassify it. It's a fundamental vulnerability that demonstrates how AI can be tricked with minimal effort.<br>• <i>Epsilon</i>: Strength of pixel change.`,
+        pgd: `<b>PGD: Projected Gradient Descent</b><br> Iterative attack with noise restarts.<br><br> The PGD attack is an enhanced version of FGSM that makes an AI model more vulnerable through a series of small, iterative changes. This makes it a highly effective and a common standard for testing AI security.<br><br>• <i>Epsilon</i>: Max allowed pixel change.<br>• <i>Step Size</i>: Change per step.<br>• <i>Max Iter</i>: Number of steps.<br>• <i>Targeted</i>: Force toward a label.<br>• <i>Num Random Init</i>: Restarts for stronger attack.`,
+        cw: `<b>C&amp;W: Carlini & Wagner Attack</b><br> Optimization-based strong attack.<br><br>Unlike simpler attacks, the C&W attack doesn't just add noise; it precisely calculates the minimum alteration required to make a model fail. It’s a powerful tool used to identify and fix deep-seated vulnerabilities in AI defenses.<br><br>• <i>Confidence</i>: Push away from true label.<br>• <i>Learning Rate</i>: Step size for optimization.<br>• <i>Binary Search Steps</i>: Refines penalty.<br>• <i>Max Iter</i>: Iterations allowed.<br><br>• <i>Initial Const</i>: Starting penalty factor.<br>• <i>Targeted</i>: Attack aims for a chosen label.`
+      };
+
+      function updateAttackInfoLive() {
+        const attack = attackSelect.value;
+        attackInfoLive.innerHTML = attackInfoText[attack] || '';
+      }
+
+      // Initial display
+      updateAttackInfoLive();
+
+      // Update on attack change
+      attackSelect.addEventListener('change', function() {
+        updateAttackInfoLive();
+
+        if (this.value === 'fgsm') {
+          epsDiv.style.display = 'block';
+          pgdParams.style.display = 'none';
+          cwParams.style.display = 'none';
+        } else if (this.value === 'pgd') {
+          epsDiv.style.display = 'block';
+          pgdParams.style.display = 'grid';
+          cwParams.style.display = 'none';
+        } else if (this.value === 'cw') {
+          epsDiv.style.display = 'none';
+          pgdParams.style.display = 'none';
+          cwParams.style.display = 'grid';
+        }
+      });
+
+
+      const demoInfo = document.getElementById('demoInfo');
+      const demoDetails = {
+        "Tile-defect-misclassification": {
+          model: "MobileNetV2 (pretrained on ImageNet, fine-tuned on mvtec_ad Datasets)",
+          dataset: "MVTec Anomaly Detection (mvtec_ad)",
+          objective: "Demo adversarial robustness by showing predictions on clean and attacked images.",
+          business: "Help enterprises minimize defective products, lower operational costs, and enhance overall manufacturing efficiency."
+        },
+        "Indian-trafic-signal-misclassification": {
+          model: "MobileNetV2 (pretrained on ImageNet, fine-tuned on Indian Traffic Signals Dataset)",
+          dataset: "Indian Traffic Signals Dataset",
+          objective: "Demonstrate model reliability in real-world traffic scenarios under adversarial attacks.",
+          business: "Support safe and reliable traffic signal detection for smart city applications."
+        },
+        // Add other demo types here...
+      };
+
+      function updateCurrentDemo() {
+        const selected = demoSelect.value;
+
+        if(demoDetails[selected]){
+          demoInfo.innerHTML = `
+            <p>Model: ${demoDetails[selected].model}</p>
+            <p>Datasets: ${demoDetails[selected].dataset}</p>
+            <p>Objective: ${demoDetails[selected].objective}</p>
+            <p>Business Use Case: ${demoDetails[selected].business}</p>
+          `;
+        } else {
+          demoInfo.innerHTML = "<p>Information not available for this demo.</p>";
+        }
+      }
+
+// Update when user changes selection
+demoSelect.addEventListener('change', () => {
+  updateCurrentDemo();
+  loadServerSamples(demoSelect.value);
+});
+
+
+// Initialize on page load
+updateCurrentDemo();
+
+
+
+      function showOverlay() {
+        document.getElementById('pageOverlay').style.display = 'flex';
+      }
+
+      function hideOverlay() {
+        document.getElementById('pageOverlay').style.display = 'none';
+      }
+
+      async function loadServerSamples(demoType) {
+        serverSampleSelect.innerHTML = '<option value="" disabled selected>Loading...</option>';
+        try {
+          const resp = await fetch(`/samples/${demoType}`);
+          const data = await resp.json();
+
+          if (!data.samples || data.samples.length === 0) {
+            serverSampleSelect.innerHTML = '<option value="" disabled selected>No samples available</option>';
+            return;
+          }
+
+          serverSampleSelect.innerHTML = '<option value="" disabled selected>Select a sample</option>';
+          data.samples.forEach(sample => {
+            const opt = document.createElement('option');
+            opt.value = sample;
+            opt.textContent = sample;
+            serverSampleSelect.appendChild(opt);
+          });
+        } catch (err) {
+          console.error("Error loading samples:", err);
+          serverSampleSelect.innerHTML = '<option value="" disabled selected>Error loading</option>';
+        }
+      }
+
+      // Load samples for the initially selected demo on page load
+      document.addEventListener("DOMContentLoaded", () => {
+        loadServerSamples(demoSelect.value);
+      });
+
+
+</script>
+</body>
+</html>

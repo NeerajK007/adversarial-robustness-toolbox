@@ -93,7 +93,7 @@ ENV/
 *config.ini
 
 # ignore pictures
-*.jpg
+#*.jpg
 demo/pics/*
 
 # Things TF might pull when testing
@@ -111,3 +111,8 @@ demo/pics/*
 !notebooks/adaptive_defence_evaluations/*.ipynb
 !notebooks/adversarial_patch/*.ipynb
 !notebooks/art_evaluations/*.ipynb
+/examples/be-secure/tmp
+/examples/be-secure/data
+!/examples/be-secure/demo/data/   # do NOT ignore demo/data
+/examples/be-secure/mobilenetv2*
+examples/be-secure/demo-banking/data/creditcard.csv

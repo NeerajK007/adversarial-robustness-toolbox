@@ -1,0 +1,9 @@
+# Base configuration for paths, logging, and environment
+paths:
+  dataset: "data/creditcard.csv"
+  model_output: "models/trained_model.pkl"
+  report_output: "reports/clean_eval_metrics.json"
+
+logging:
+  level: "INFO"
+  file: "demo_banking.log"

@@ -1,0 +1,24 @@
+surrogate:
+  epochs: 3
+  batch_size: 64
+  lr: 0.001
+  hidden_dim: 64
+
+attack:
+  fgsm:
+    eps: 0.1
+  pgd:
+    eps: 0.3
+    eps_step: 0.01
+    max_iter: 15
+  hopskipjump:
+    max_iter: 10     # increase for stronger attacks (20-50)
+    max_eval: 100    # queries per iteration; increase for strength
+
+output:
+  transfer_fgsm: "artifacts/adv/transfer_fgsm.npz"
+  transfer_fgsm_report: "reports/transfer_fgsm_metrics.json"
+  transfer_pgd: "artifacts/adv/transfer_pgd.npz"
+  transfer_pgd_report: "reports/transfer_pgd_metrics.json"
+  hopskipjump: "artifacts/adv/hopskipjump.npz"
+  hopskipjump_report: "reports/hopskipjump_metrics.json"
