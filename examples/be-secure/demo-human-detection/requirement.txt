@@ -1,0 +1,6 @@
+opencv-python
+ultralytics
+torch
+numpy
+jupyter
+matplotlib

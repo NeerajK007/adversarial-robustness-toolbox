@@ -1,0 +1,8 @@
+# Dependencies for demo-banking project
+# e.g., ibm-adversarial-robustness-toolbox, pandas, scikit-learn
+pandas
+numpy
+scikit-learn
+xgboost
+pyyaml
+joblib
